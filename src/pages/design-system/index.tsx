@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
+import { HEADER_BLOCK_SIZE } from '@components/header/header.styles';
 import { useShellOutletContext } from '@components/router/use-shell-outlet-context';
-import { SearchIcon } from '@icons/search';
 import { SettingsIcon } from '@icons/settings';
 import { Button } from '@ui/button';
 import { Card } from '@ui/card';
@@ -17,20 +17,24 @@ import {
   RangeInput,
   type RangeValue,
 } from '@ui/range-input';
+import { RoundButton } from '@ui/round-button';
 import { ScrollPort } from '@ui/scroll-port';
 import { SegmentButton } from '@ui/segment-button';
 import { Sidebar } from '@ui/sidebar';
+import { spacingRem } from '@ui/spacing';
 import { Spinner } from '@ui/spinner';
 import { Stepper } from '@ui/stepper';
 import { Switch } from '@ui/switch';
 import { Tag } from '@ui/tag';
-import { Text } from '@ui/text';
 import { Toast } from '@ui/toast';
 
 import { ButtonSettings, type ButtonWidgetState } from './button-settings';
 import { CheckboxSettings, type CheckboxWidgetState } from './checkbox-settings';
 import { ComboboxSettings, type ComboboxWidgetState } from './combobox-settings';
-import { COMBOBOX_DEMO_OPTIONS } from './combobox-settings/options';
+import {
+  COMBOBOX_DEMO_OPTIONS,
+  SHOWCASE_ICON_COMBOBOX_OPTIONS,
+} from './combobox-settings/options';
 import {
   StyledDesignSystemWidgets,
   StyledFieldsetDemo,
@@ -50,9 +54,14 @@ import {
 } from './radio-button-settings';
 import { RangeInputSettings, type RangeInputWidgetState } from './range-input-settings';
 import {
+  RoundButtonSettings,
+  type RoundButtonWidgetState,
+} from './round-button-settings';
+import {
   SegmentButtonSettings,
   type SegmentButtonWidgetState,
 } from './segment-button-settings';
+import { renderShowcaseIcon } from './showcase-icons';
 import { SpinnerSettings, type SpinnerWidgetState } from './spinner-settings';
 import { StepperSettings, type StepperWidgetState } from './stepper-settings';
 import { SwitchSettings, type SwitchWidgetState } from './switch-settings';
@@ -62,6 +71,7 @@ import { ToastSettings, type ToastWidgetState } from './toast-settings';
 const SIDEBAR_ID = 'design-system-sidebar';
 const INPUT_WIDGET_TITLE_ID = 'design-system-input-heading';
 const BUTTON_WIDGET_TITLE_ID = 'design-system-button-heading';
+const ROUND_BUTTON_WIDGET_TITLE_ID = 'design-system-round-button-heading';
 const LISTBOX_WIDGET_TITLE_ID = 'design-system-listbox-heading';
 const COMBOBOX_WIDGET_TITLE_ID = 'design-system-combobox-heading';
 const RANGE_INPUT_WIDGET_TITLE_ID = 'design-system-range-input-heading';
@@ -84,6 +94,7 @@ type WidgetSettingsKey =
   | 'combobox'
   | 'range-input'
   | 'button'
+  | 'round-button'
   | 'segment-button'
   | 'tag'
   | 'checkbox'
@@ -101,6 +112,7 @@ const SETTINGS_TITLES: Record<WidgetSettingsKey, string> = {
   combobox: 'Combobox',
   'range-input': 'Range filter',
   button: 'Button',
+  'round-button': 'Round button',
   'segment-button': 'Segment button',
   tag: 'Tag',
   checkbox: 'Checkbox',
@@ -114,13 +126,14 @@ const SETTINGS_TITLES: Record<WidgetSettingsKey, string> = {
 };
 
 /**
- * Локальный definite-якорь высоты видимой области: вьюпорт минус шапка (4.5rem) и нижний
- * инсет (0.5rem). Один и тот же предел отдаём плейграунду и панели сайдбара, чтобы обе
- * области совпадали по высоте и подстраивались под resize. dvb не зависит от грид-каркаса
- * body, поэтому ScrollPort внутри скролит контент, не растягивая страницу. Каркасная
- * альтернатива — в @ui/sidebar.
+ * Локальный definite-якорь высоты видимой области: вьюпорт минус живая высота шапки
+ * (CSS-переменная `--shell-header-block-size`, которую публикует сама шапка) и нижний инсет.
+ * Единый источник высоты — шапка: при сворачивании в autoHide переменная уменьшается и
+ * плейграунд/панель сайдбара плавно занимают весь экран. dvb не зависит от грид-каркаса body,
+ * поэтому ScrollPort внутри скролит контент, не растягивая страницу. Каркасная альтернатива —
+ * в @ui/sidebar.
  */
-const PLAYGROUND_MAX_BLOCK_SIZE = 'calc(100dvb - 5rem)';
+const PLAYGROUND_MAX_BLOCK_SIZE = `calc(100dvb - var(--shell-header-block-size, ${HEADER_BLOCK_SIZE}) - ${spacingRem(8)})`;
 
 const DEFAULT_INPUT_STATE: InputWidgetState = {
   disabled: false,
@@ -136,6 +149,7 @@ const DEFAULT_BUTTON_STATE: ButtonWidgetState = {
   active: false,
   disabled: false,
   iconFill: 'default',
+  iconKey: 'search',
   iconPosition: 'end',
   iconTone: 'default',
   textColor: 'default',
@@ -144,6 +158,12 @@ const DEFAULT_BUTTON_STATE: ButtonWidgetState = {
   text: 'Button',
   tone: 'default',
   withIcon: false,
+};
+
+const DEFAULT_ROUND_BUTTON_STATE: RoundButtonWidgetState = {
+  disabled: false,
+  iconKey: 'settings',
+  sizePreset: 'medium',
 };
 
 const DEFAULT_LISTBOX_STATE: ListboxWidgetState = {
@@ -161,7 +181,8 @@ const DEFAULT_COMBOBOX_STATE: ComboboxWidgetState = {
   label: 'Label:',
   shape: 'default',
   sizePreset: 'large',
-  value: COMBOBOX_DEMO_OPTIONS[0].value,
+  value: 'search',
+  withIcon: false,
 };
 
 const DEFAULT_RANGE_INPUT_STATE: RangeInputWidgetState = {
@@ -245,6 +266,7 @@ const DEFAULT_SWITCH_STATE: SwitchWidgetState = {
 
 const DEFAULT_TOAST_STATE: ToastWidgetState = {
   message: 'Very important message',
+  sizePreset: 'large',
   tone: 'success',
 };
 
@@ -273,7 +295,7 @@ const DEFAULT_TAG_STATE: TagWidgetState = {
   text: 'Tag',
   textColor: 'default',
   tinted: false,
-  tone: 'default',
+  tone: 'primary',
 };
 
 function formatDemoRangeLabel(value: RangeValue): string {
@@ -313,6 +335,9 @@ export function DesignSystemPage() {
   const [activeSettings, setActiveSettings] = useState<WidgetSettingsKey | null>(null);
   const [input, setInput] = useState<InputWidgetState>(DEFAULT_INPUT_STATE);
   const [button, setButton] = useState<ButtonWidgetState>(DEFAULT_BUTTON_STATE);
+  const [roundButton, setRoundButton] = useState<RoundButtonWidgetState>(
+    DEFAULT_ROUND_BUTTON_STATE
+  );
   const [listbox, setListbox] = useState<ListboxWidgetState>(DEFAULT_LISTBOX_STATE);
   const [combobox, setCombobox] = useState<ComboboxWidgetState>(DEFAULT_COMBOBOX_STATE);
   const [rangeInput, setRangeInput] = useState<RangeInputWidgetState>(
@@ -355,7 +380,7 @@ export function DesignSystemPage() {
       : undefined;
 
   function activateSettings(target: WidgetSettingsKey): void {
-    if (!settingsOpen) {
+    if (!panelOpen) {
       return;
     }
 
@@ -385,6 +410,13 @@ export function DesignSystemPage() {
     value: ButtonWidgetState[K]
   ): void {
     setButton((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateRoundButton<K extends keyof RoundButtonWidgetState>(
+    key: K,
+    value: RoundButtonWidgetState[K]
+  ): void {
+    setRoundButton((current) => ({ ...current, [key]: value }));
   }
 
   function updateListbox<K extends keyof ListboxWidgetState>(
@@ -424,6 +456,11 @@ export function DesignSystemPage() {
   ): void {
     setCombobox((current) => ({ ...current, [key]: value }));
   }
+
+  const comboboxDemoOptions = useMemo(
+    () => (combobox.withIcon ? SHOWCASE_ICON_COMBOBOX_OPTIONS : COMBOBOX_DEMO_OPTIONS),
+    [combobox.withIcon]
+  );
 
   function updateRangeInput<K extends keyof RangeInputWidgetState>(
     key: K,
@@ -528,6 +565,10 @@ export function DesignSystemPage() {
 
     if (activeSettings === 'button') {
       return <ButtonSettings state={button} onChange={updateButton} />;
+    }
+
+    if (activeSettings === 'round-button') {
+      return <RoundButtonSettings state={roundButton} onChange={updateRoundButton} />;
     }
 
     if (activeSettings === 'segment-button') {
@@ -668,7 +709,7 @@ export function DesignSystemPage() {
                   alignSelf="center"
                   disabled={combobox.disabled}
                   label={combobox.label || undefined}
-                  options={COMBOBOX_DEMO_OPTIONS}
+                  options={comboboxDemoOptions}
                   shape={combobox.shape}
                   sizePreset={combobox.sizePreset}
                   value={combobox.value}
@@ -720,7 +761,7 @@ export function DesignSystemPage() {
                   active={button.active}
                   alignSelf="center"
                   disabled={button.disabled}
-                  icon={button.withIcon ? <SearchIcon /> : undefined}
+                  icon={button.withIcon ? renderShowcaseIcon(button.iconKey) : undefined}
                   iconFill={button.withIcon ? button.iconFill : undefined}
                   iconPosition={button.iconPosition}
                   iconTone={button.withIcon ? button.iconTone : undefined}
@@ -732,6 +773,19 @@ export function DesignSystemPage() {
                 >
                   {button.text}
                 </Button>
+              )}
+
+              {renderWidgetCard(
+                'round-button',
+                ROUND_BUTTON_WIDGET_TITLE_ID,
+                <RoundButton
+                  aria-label="Demo round button"
+                  disabled={roundButton.disabled}
+                  placeSelf="center"
+                  sizePreset={roundButton.sizePreset}
+                >
+                  {renderShowcaseIcon(roundButton.iconKey)}
+                </RoundButton>
               )}
 
               {renderWidgetCard(
@@ -901,9 +955,12 @@ export function DesignSystemPage() {
               {renderWidgetCard(
                 'toast',
                 TOAST_WIDGET_TITLE_ID,
-                <Toast alignSelf="center" tone={toast.tone}>
-                  <Text sizePreset="thin">{toast.message}</Text>
-                </Toast>
+                <Toast
+                  alignSelf="center"
+                  message={toast.message}
+                  sizePreset={toast.sizePreset}
+                  tone={toast.tone}
+                />
               )}
             </StyledDesignSystemWidgets>
           </ScrollPort>
