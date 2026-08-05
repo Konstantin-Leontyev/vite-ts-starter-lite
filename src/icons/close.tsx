@@ -1,3 +1,25 @@
+/**
+ * Файл: `src/icons/close.tsx`
+ * Предоставляет svg-иконку закрытия.
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент CloseIcon
+ *
+ * Потребители:
+ *  - контролы с очисткой и закрытием, например Modal, DateRangeInput и RangeInput —
+ *    показывают действие закрытия
+ *  - `src/components/profile-menu/index.tsx` — показывает действие закрытия
+ *  - `src/pages/showcase/showcase-icon-options.tsx` — включает в опции витрины
+ */
+
+/**
+ * CloseIcon — отображает svg-иконку закрытия.
+ *
+ * @example
+ * <Icon>
+ *   <CloseIcon />
+ * </Icon>
+ */
 export function CloseIcon() {
   return (
     <svg
@@ -7,11 +29,10 @@ export function CloseIcon() {
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        d="M5 5l14 14M19 5 5 19"
+        d="M19 5L5 19M5 5L19 19"
         stroke="currentColor"
         strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="1.5"
       />
     </svg>
   );

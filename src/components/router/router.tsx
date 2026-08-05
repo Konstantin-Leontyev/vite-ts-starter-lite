@@ -1,11 +1,28 @@
+/**
+ * Файл: `src/components/router/router.tsx`
+ * Определяет конфигурацию hash-маршрутизатора приложения.
+ *
+ * Основные задачи:
+ * 1. Предоставить объект `router` для `RouterProvider`
+ *
+ * Потребители:
+ *  - `src/components/router/index.tsx` — реэкспортирует `router`
+ */
+
 import { createHashRouter } from 'react-router-dom';
 
-import { RouterLayout } from '@components/router';
-import { DesignSystemPage } from '@pages/design-system';
 import { HomePage } from '@pages/home';
 import { PrivacyPage } from '@pages/privacy';
+import { ShowcasePage } from '@pages/showcase';
 import { TermsPage } from '@pages/terms';
 
+import { RouterLayout } from './router-layout';
+
+/**
+ * router — задаёт конфигурацию hash-маршрутов приложения.
+ * Корневой маршрут рендерит `RouterLayout`, дочерние — страницы.
+ * Используется в `src/main.tsx` через `RouterProvider`.
+ */
 export const router = createHashRouter([
   {
     children: [
@@ -14,8 +31,8 @@ export const router = createHashRouter([
         index: true,
       },
       {
-        element: <DesignSystemPage />,
-        path: 'design-system',
+        element: <ShowcasePage />,
+        path: 'showcase',
       },
       {
         element: <PrivacyPage />,

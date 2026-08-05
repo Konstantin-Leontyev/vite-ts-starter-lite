@@ -1,6 +1,40 @@
+/**
+ * Файл: `src/ui/stepper/index.tsx`
+ * Предоставляет компонент Stepper для отображения числового счётчика с полем ввода и стрелками.
+ *
+ * Поддерживает:
+ *  - layout-пропсы: отступы, позиционирование, размеры
+ *  - размерный ряд через проп `sizePreset`
+ *  - форму поля через проп `shape`
+ *  - числовое значение через проп `value`
+ *  - обработчик изменения значения через проп `onChange`
+ *  - обработчик фиксации значения через проп `onCommit`
+ *  - нижнюю границу через проп `min`
+ *  - верхнюю границу через проп `max`
+ *  - шаг изменения через проп `step`
+ *  - подпись единицы внутри поля через проп `suffix`
+ *  - тон значения и суффикса через проп `textTone`
+ *  - размер значения и суффикса через проп `textSize`
+ *  - курсив значения и суффикса через проп `textItalic`
+ *  - горизонтальное выравнивание пары «значение + суффикс» через проп `textAlign`
+ *  - подпись над полем через проп `label`
+ *  - текстовую метку через проп `aria-label`
+ *  - id метки через проп `aria-labelledby`
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент Stepper
+ * 2. Типизировать пропсы через `StepperProps`
+ * 3. Выставлять `role="spinbutton"` и атрибуты `aria-valuenow`, `aria-valuemin`, `aria-valuemax`
+ * 4. Реэкспортировать мост размера текста `getStepperTextSize`
+ *
+ * Потребители:
+ *  - `src/pages/showcase/stepper-settings/index.tsx` — выбирает шаг в панели настроек
+ *  - `src/pages/showcase` — демонстрирует состояния в витрине
+ */
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type ChangeEvent,
@@ -8,85 +42,160 @@ import {
   type KeyboardEvent,
 } from 'react';
 
-import { ChevronDownIcon } from '@icons/chevron-down';
-import { ChevronUpIcon } from '@icons/chevron-up';
+import { ChevronDownIcon, ChevronUpIcon } from '@icons';
+import { FieldLabel } from '@ui/field-label';
+import { Icon } from '@ui/icon';
+import { type SpacingValue } from '@ui/spacing';
+import { Text, type TextTone } from '@ui/text';
 
 import {
   StyledStepperButton,
+  StyledStepperFieldRoot,
   StyledStepperInput,
   StyledStepperRoot,
   StyledStepperSpin,
-  StyledStepperSuffix,
   StyledStepperValue,
+  getStepperTextSize,
   splitLayoutProps,
   type StepperStyleProps,
 } from './stepper.styles';
 
-/** Пауза до старта автоповтора при удержании и шаг повтора (мс). */
-const STEP_REPEAT_DELAY_MS = 400;
-const STEP_REPEAT_INTERVAL_MS = 60;
+/**
+ * DEFAULT_STEPPER_STEP — задаёт шаг изменения по умолчанию.
+ * Используется, когда вызывающий код не передал проп `step`.
+ */
+const DEFAULT_STEPPER_STEP = 1;
 
-/** EN-дефолты подписей стрелок (как у прочих примитивов). */
-const INCREASE_LABEL = 'Increase';
+/**
+ * DEFAULT_STEPPER_SUFFIX_TONE — задаёт тон суффикса по умолчанию.
+ * Суффикс единицы — вторичный текст, поэтому `muted`.
+ */
+const DEFAULT_STEPPER_SUFFIX_TONE: TextTone = 'muted';
+
+/**
+ * DECREASE_LABEL — задаёт текст `aria-label` кнопки уменьшения.
+ * Используется для доступного имени стрелки вниз.
+ */
 const DECREASE_LABEL = 'Decrease';
 
-/** spinbutton требует accessible name — aria-label или aria-labelledby. */
-type StepperAccessibleName =
-  | { 'aria-label': string; 'aria-labelledby'?: never }
-  | { 'aria-labelledby': string; 'aria-label'?: never };
+/**
+ * INCREASE_LABEL — задаёт текст `aria-label` кнопки увеличения.
+ * Используется для доступного имени стрелки вверх.
+ */
+const INCREASE_LABEL = 'Increase';
 
+/**
+ * STEPPER_CHEVRON_ICON_PADDING — задаёт отступ окна Icon шеврона внутри половинки
+ * стрелки. Вместе с высотой половинки даёт окна `12`/`16`/`20` px при `small`/`normal`/`large`.
+ */
+const STEPPER_CHEVRON_ICON_PADDING: SpacingValue = 2;
+
+/**
+ * STEP_REPEAT_DELAY_MS — задаёт паузу до старта автоповтора при удержании стрелки.
+ * Используется в таймере начала автоповтора.
+ */
+const STEP_REPEAT_DELAY_MS = 400;
+
+/**
+ * STEP_REPEAT_INTERVAL_MS — задаёт интервал шагов автоповтора при удержании стрелки.
+ * Используется в повторяющемся таймере.
+ */
+const STEP_REPEAT_INTERVAL_MS = 60;
+
+/**
+ * StepperAccessibleName — представляет обязательное доступное имя spinbutton.
+ * Требует один из пропов: `label`, `aria-label` или `aria-labelledby`.
+ *
+ * @property aria-label — текстовая метка поля
+ * @property aria-labelledby — id элемента с меткой поля
+ * @property label — подпись над полем; при передаче выставляет `aria-labelledby`
+ *   на spinbutton через `resolvedLabelledBy`
+ */
+type StepperAccessibleName =
+  | { 'aria-label': string; 'aria-labelledby'?: never; label?: never }
+  | { 'aria-label'?: never; 'aria-labelledby': string; label?: never }
+  | { 'aria-label'?: never; 'aria-labelledby'?: never; label: string };
+
+/**
+ * StepperProps — представляет пропсы компонента Stepper.
+ *
+ * @property max — верхняя граница значения
+ * @property min — нижняя граница значения
+ * @property onChange — обработчик изменения значения
+ * @property onCommit — обработчик фиксации значения после `blur` поля и отпускания стрелки, в том числе после автоповтора
+ * @property step — шаг изменения значения
+ * @property suffix — подпись единицы внутри поля, например `K` или `M`
+ * @property value — числовое значение счётчика
+ */
 type StepperProps = StepperStyleProps &
   StepperAccessibleName & {
-    value: number;
-    onChange: (value: number) => void;
-    /** Финальное значение: blur поля и отпускание стрелки (в т.ч. после автоповтора). */
-    onCommit?: (value: number) => void;
-    min?: number;
     max?: number;
+    min?: number;
+    onChange: (value: number) => void;
+    onCommit?: (value: number) => void;
     step?: number;
-    /** Подпись единицы внутри поля (например, K/M) — рисуется суффиксом у значения. */
     suffix?: string;
+    value: number;
   } & Omit<
     ComponentPropsWithRef<'input'>,
-    | keyof StepperStyleProps
-    | 'className'
-    | 'style'
-    | 'type'
-    | 'role'
-    | 'value'
-    | 'onChange'
-    | 'onBlur'
-    | 'onKeyDown'
-    | 'min'
-    | 'max'
-    | 'step'
     | 'aria-label'
     | 'aria-labelledby'
+    | 'className'
+    | 'max'
+    | 'min'
+    | 'onBlur'
+    | 'onChange'
+    | 'onKeyDown'
+    | 'role'
+    | 'step'
+    | 'style'
+    | 'type'
+    | 'value'
+    | keyof StepperStyleProps
   >;
 
+/**
+ * Stepper — отображает числовой счётчик с полем ввода и стрелками.
+ *
+ * @example
+ * <Stepper label="Quantity:" value={1} onChange={setValue} />
+ * <Stepper aria-label="Quantity" value={1} onChange={setValue} />
+ * <Stepper aria-labelledby="qty-label" min={0} max={10} step={1} value={5} onChange={setValue} />
+ * <Stepper sizePreset="normal" suffix="K" textAlign="start" value={100} onChange={setValue} />
+ */
 export function Stepper({
-  align,
-  shape,
-  sizePreset,
-  value,
-  onChange,
-  onCommit,
-  min,
-  max,
-  step = 1,
-  suffix,
-  disabled,
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
+  disabled,
+  label,
+  max,
+  min,
+  onChange,
+  onCommit,
+  shape,
+  sizePreset,
+  step = DEFAULT_STEPPER_STEP,
+  suffix,
+  textAlign,
+  textItalic,
+  textSize,
+  textTone,
+  value,
   ...rest
 }: StepperProps) {
-  const { layout, rest: control } = splitLayoutProps(rest);
+  const { layoutProps, restProps } = splitLayoutProps(rest);
+  const labelId = useId();
+  const resolvedLabelledBy = label ? labelId : ariaLabelledBy;
 
-  /* draft != null — пользователь печатает; иначе показываем актуальное value. */
-  const [draft, setDraft] = useState<string | null>(null);
+  // Размер пары «значение + суффикс» вычисляется один раз: поле и Text получают готовое значение
+  const resolvedTextSize = textSize ?? getStepperTextSize(sizePreset);
 
-  /* Актуальное значение для автоповтора: замыкание интервала иначе держит устаревшее. */
+  // Если draft не null, пользователь печатает, иначе показывается актуальное value
+  const [draft, setDraft] = useState<null | string>(null);
+
+  // Хранит актуальное значение для автоповтора, иначе замыкание интервала держит устаревшее
   const valueRef = useRef(value);
+
   useEffect(() => {
     valueRef.current = value;
   }, [value]);
@@ -113,7 +222,7 @@ export function Stepper({
   }, [clamp, onCommit]);
 
   const stepBy = useCallback(
-    (direction: 1 | -1): void => {
+    (direction: -1 | 1): void => {
       setDraft(null);
       const next = clamp(valueRef.current + direction * step);
       valueRef.current = next;
@@ -122,21 +231,18 @@ export function Stepper({
     [clamp, onChange, step]
   );
 
-  const handleChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>): void => {
-      const next = event.target.value;
-      setDraft(next);
-      const parsed = Number(next);
+  const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
+    const next = event.target.value;
+    setDraft(next);
+    const parsed = Number(next);
 
-      if (next.trim() !== '' && Number.isFinite(parsed)) {
-        onChange(parsed);
-      }
-    },
-    [onChange]
-  );
+    if (next.trim() !== '' && Number.isFinite(parsed)) {
+      onChange(parsed);
+    }
+  };
 
-  /* По уходу из поля фиксируем приведённое к диапазону значение и показываем value. */
-  const handleBlur = useCallback((): void => {
+  // По уходу из поля фиксирует приведённое к диапазону значение и показывает value
+  const handleBlur = (): void => {
     if (draft !== null) {
       const parsed = Number(draft);
 
@@ -147,23 +253,20 @@ export function Stepper({
 
     setDraft(null);
     commit();
-  }, [clamp, commit, draft, onChange]);
+  };
 
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>): void => {
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        stepBy(1);
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        stepBy(-1);
-      }
-    },
-    [stepBy]
-  );
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      stepBy(1);
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      stepBy(-1);
+    }
+  };
 
-  /* Удержание стрелки: после паузы — автоповтор; repeated гасит click-«хвост» по отпусканию. */
-  const holdRef = useRef<{ timer: number | null; repeated: boolean }>({
+  // Удержание стрелки запускает автоповтор после паузы, repeated гасит лишний click по отпусканию
+  const holdRef = useRef<{ repeated: boolean; timer: null | number }>({
     timer: null,
     repeated: false,
   });
@@ -184,7 +287,7 @@ export function Stepper({
   }, [commit]);
 
   const startHold = useCallback(
-    (direction: 1 | -1): void => {
+    (direction: -1 | 1): void => {
       spinActiveRef.current = true;
       holdRef.current.repeated = false;
 
@@ -200,7 +303,7 @@ export function Stepper({
   );
 
   const handleStepClick = useCallback(
-    (direction: 1 | -1): void => {
+    (direction: -1 | 1): void => {
       if (holdRef.current.repeated) {
         holdRef.current.repeated = false;
 
@@ -213,56 +316,107 @@ export function Stepper({
     [commit, stepBy]
   );
 
+  const handleIncreaseClick = (): void => {
+    handleStepClick(1);
+  };
+
+  const handleDecreaseClick = (): void => {
+    handleStepClick(-1);
+  };
+
+  const handleIncreasePointerDown = (): void => {
+    startHold(1);
+  };
+
+  const handleDecreasePointerDown = (): void => {
+    startHold(-1);
+  };
+
   useEffect(() => stopHold, [stopHold]);
 
   return (
-    <StyledStepperRoot {...layout} align={align} shape={shape} sizePreset={sizePreset}>
-      <StyledStepperValue>
-        <StyledStepperInput
-          inputMode="numeric"
-          {...control}
-          aria-label={ariaLabel}
-          aria-labelledby={ariaLabelledBy}
-          aria-valuemax={max}
-          aria-valuemin={min}
-          aria-valuenow={value}
-          disabled={disabled}
-          role="spinbutton"
-          type="text"
-          value={draft ?? String(value)}
-          onBlur={handleBlur}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-        />
-        {Boolean(suffix) && <StyledStepperSuffix>{suffix}</StyledStepperSuffix>}
-      </StyledStepperValue>
+    <StyledStepperFieldRoot {...layoutProps}>
+      <FieldLabel id={labelId}>{label}</FieldLabel>
+      <StyledStepperRoot
+        data-disabled={disabled ? '' : undefined}
+        shape={shape}
+        sizePreset={sizePreset}
+      >
+        <StyledStepperValue sizePreset={sizePreset} textAlign={textAlign}>
+          <StyledStepperInput
+            inputMode="numeric"
+            textItalic={textItalic}
+            textSize={resolvedTextSize}
+            textTone={textTone}
+            {...restProps}
+            aria-label={ariaLabel}
+            aria-labelledby={resolvedLabelledBy}
+            aria-valuemax={max}
+            aria-valuemin={min}
+            aria-valuenow={value}
+            disabled={disabled}
+            role="spinbutton"
+            type="text"
+            value={draft ?? String(value)}
+            onBlur={handleBlur}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+          />
+          {Boolean(suffix) && (
+            <Text
+              italic={textItalic}
+              sizePreset={resolvedTextSize}
+              tone={textTone ?? DEFAULT_STEPPER_SUFFIX_TONE}
+            >
+              {suffix}
+            </Text>
+          )}
+        </StyledStepperValue>
 
-      <StyledStepperSpin>
-        <StyledStepperButton
-          aria-label={INCREASE_LABEL}
-          disabled={disabled}
-          type="button"
-          onClick={() => handleStepClick(1)}
-          onPointerDown={() => startHold(1)}
-          onPointerLeave={stopHold}
-          onPointerUp={stopHold}
-        >
-          <ChevronUpIcon />
-        </StyledStepperButton>
-        <StyledStepperButton
-          aria-label={DECREASE_LABEL}
-          disabled={disabled}
-          type="button"
-          onClick={() => handleStepClick(-1)}
-          onPointerDown={() => startHold(-1)}
-          onPointerLeave={stopHold}
-          onPointerUp={stopHold}
-        >
-          <ChevronDownIcon />
-        </StyledStepperButton>
-      </StyledStepperSpin>
-    </StyledStepperRoot>
+        <StyledStepperSpin sizePreset={sizePreset}>
+          <StyledStepperButton
+            aria-label={INCREASE_LABEL}
+            disabled={disabled}
+            sizePreset={sizePreset}
+            type="button"
+            onClick={handleIncreaseClick}
+            onPointerDown={handleIncreasePointerDown}
+            onPointerLeave={stopHold}
+            onPointerUp={stopHold}
+          >
+            <Icon
+              blockSize="100%"
+              inlineSize="100%"
+              padding={STEPPER_CHEVRON_ICON_PADDING}
+              showHover={false}
+            >
+              <ChevronUpIcon />
+            </Icon>
+          </StyledStepperButton>
+          <StyledStepperButton
+            aria-label={DECREASE_LABEL}
+            disabled={disabled}
+            sizePreset={sizePreset}
+            type="button"
+            onClick={handleDecreaseClick}
+            onPointerDown={handleDecreasePointerDown}
+            onPointerLeave={stopHold}
+            onPointerUp={stopHold}
+          >
+            <Icon
+              blockSize="100%"
+              inlineSize="100%"
+              padding={STEPPER_CHEVRON_ICON_PADDING}
+              showHover={false}
+            >
+              <ChevronDownIcon />
+            </Icon>
+          </StyledStepperButton>
+        </StyledStepperSpin>
+      </StyledStepperRoot>
+    </StyledStepperFieldRoot>
   );
 }
 
-export type { StepperStyleProps } from './stepper.styles';
+/* eslint-disable react-refresh/only-export-components -- реэкспорт моста размера текста */
+export { getStepperTextSize };

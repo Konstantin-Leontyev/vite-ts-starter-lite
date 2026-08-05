@@ -1,6 +1,48 @@
+/**
+ * Файл: `src/ui/sidebar/index.tsx`
+ * Предоставляет компонент Sidebar для отображения страницы с выезжающей панелью.
+ *
+ * Поддерживает:
+ *  - layout-пропсы: отступы. Позиционирование и размеры каркас не принимает —
+ *    высоту и место в потоке задаёт обёртка вызывающего кода
+ *  - зазор между областью контента и панелью через проп `gap`
+ *  - область страницы через `children`
+ *  - ref области контента через проп `contentRef`
+ *  - дополнительные кнопки в шапке панели через проп `headerActions`. Рендерятся перед
+ *    кнопкой сворачивания
+ *  - иконку кнопки сворачивания через проп `icon`
+ *  - доступное имя кнопки сворачивания через проп `iconAriaLabel`
+ *  - id панели через проп `id`
+ *  - обработчик закрытия через проп `onClose`
+ *  - открытое состояние панели через проп `open`
+ *  - содержимое панели через проп `sidebarContent`
+ *  - заливку панели через проп `background`
+ *  - рамку панели через проп `showBorder`
+ *  - тень панели через проп `showShadow`
+ *  - тон рамки панели через проп `borderTone`
+ *  - заголовок панели через проп `title`
+ *  - подзаголовок панели через проп `subtitle`
+ *  - размер заголовка через проп `titleSizePreset`
+ *  - выравнивание заголовка через проп `titleAlign`
+ *  - тон заголовка через проп `titleTone`
+ *  - размер подзаголовка через проп `subtitleSizePreset`
+ *  - выравнивание подзаголовка через проп `subtitleAlign`
+ *  - тон подзаголовка через проп `subtitleTone`
+ *  - переопределение корневого элемента панели через проп `as`
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент Sidebar
+ * 2. Типизировать пропсы через `SidebarProps`
+ * 3. Выставлять `aria-controls`, `aria-expanded` и `aria-label` на кнопке сворачивания
+ *    и `aria-labelledby` на слоте панели
+ *
+ * Потребители:
+ *  - страницы и виджеты приложения — показывают страницу с выезжающей панелью
+ *  - `src/pages/showcase` — демонстрирует состояния в витрине
+ */
+
 import {
   useLayoutEffect,
-  useMemo,
   useState,
   type ComponentProps,
   type ReactNode,
@@ -8,7 +50,7 @@ import {
   type TransitionEvent,
 } from 'react';
 
-import { SidebarIcon } from '@icons/sidebar';
+import { SidebarIcon } from '@icons';
 import { Card, type CardHeaderAction } from '@ui/card';
 
 import {
@@ -16,20 +58,54 @@ import {
   StyledSidebarContent,
   StyledSidebarSlot,
   StyledSidebarTrack,
+  splitLayoutProps,
   type SidebarStyleProps,
 } from './sidebar.styles';
 
-/** Card-пропы панели прокидываются россыпью; своё у сайдбара — управление выездом и иконка. */
+/**
+ * DEFAULT_SIDEBAR_HEADER_ACTIONS — задаёт ряд действий шапки по умолчанию.
+ * Используется, когда вызывающий код не передал проп `headerActions`.
+ */
+const DEFAULT_SIDEBAR_HEADER_ACTIONS: CardHeaderAction[] = [];
+
+/**
+ * DEFAULT_SIDEBAR_ICON — задаёт иконку кнопки сворачивания по умолчанию.
+ * Используется, когда вызывающий код не передал проп `icon`.
+ */
+const DEFAULT_SIDEBAR_ICON = <SidebarIcon />;
+
+/**
+ * DEFAULT_SIDEBAR_ICON_ARIA_LABEL — задаёт доступное имя кнопки сворачивания по умолчанию.
+ * Используется, когда вызывающий код не передал проп `iconAriaLabel`.
+ */
+const DEFAULT_SIDEBAR_ICON_ARIA_LABEL = 'Close panel';
+
+/**
+ * CardForwardProps — представляет пропсы Card, доступные панели Sidebar.
+ * Layout-пропсы зарезервированы за оболочкой Sidebar через `SidebarStyleProps`.
+ */
 type CardForwardProps = Omit<
   ComponentProps<typeof Card>,
-  keyof SidebarStyleProps | 'children' | 'headerActions' | 'id' | 'titleId'
+  'children' | 'headerActions' | 'id' | 'titleId' | keyof SidebarStyleProps
 >;
 
+/**
+ * SidebarProps — представляет пропсы компонента Sidebar.
+ *
+ * @property children — содержимое области страницы слева от панели
+ * @property contentRef — ref области контента
+ * @property headerActions — дополнительные кнопки в шапке панели
+ * @property icon — иконка кнопки сворачивания
+ * @property iconAriaLabel — доступное имя кнопки сворачивания
+ * @property id — id панели для связки с кнопкой сворачивания
+ * @property onClose — обработчик закрытия панели
+ * @property open — включает открытое состояние панели
+ * @property sidebarContent — содержимое выезжающей панели
+ */
 type SidebarProps = SidebarStyleProps &
   CardForwardProps & {
     children: ReactNode;
     contentRef?: Ref<HTMLDivElement>;
-    /** Доп. кнопки в шапке панели; рендерятся перед кнопкой сворачивания. */
     headerActions?: CardHeaderAction[];
     icon?: ReactNode;
     iconAriaLabel?: string;
@@ -39,65 +115,80 @@ type SidebarProps = SidebarStyleProps &
     sidebarContent: ReactNode;
   };
 
+/**
+ * Sidebar — отображает страницу с выезжающей панелью.
+ *
+ * @example
+ * <Sidebar open={open} onClose={closePanel} sidebarContent={<Settings />}>
+ *   <PageContent />
+ * </Sidebar>
+ * <Sidebar
+ *   id="panel"
+ *   open={open}
+ *   onClose={closePanel}
+ *   gap={16}
+ *   title="Settings"
+ *   sidebarContent={<Settings />}
+ * >
+ *   <PageContent />
+ * </Sidebar>
+ */
 export function Sidebar({
   children,
   contentRef,
-  headerActions = [],
-  icon,
-  iconAriaLabel = 'Close panel',
+  headerActions = DEFAULT_SIDEBAR_HEADER_ACTIONS,
+  icon = DEFAULT_SIDEBAR_ICON,
+  iconAriaLabel = DEFAULT_SIDEBAR_ICON_ARIA_LABEL,
   id,
-  offset,
   onClose,
   open,
-  paddingBlockEnd,
-  paddingBlockStart,
-  paddingInlineEnd,
-  paddingInlineStart,
   sidebarContent,
   title,
-  ...cardProps
+  ...rest
 }: SidebarProps) {
+  const { layoutProps, restProps } = splitLayoutProps(rest);
   const titleId = title && id ? `${id}-title` : undefined;
 
-  /* Пользовательские действия первыми, кнопка сворачивания — последней (крайняя справа). */
-  const cardHeaderActions = useMemo(
-    (): CardHeaderAction[] => [
-      ...headerActions,
-      {
-        ariaControls: id,
-        ariaExpanded: open,
-        ariaLabel: iconAriaLabel,
-        icon: icon ?? <SidebarIcon />,
-        onClick: onClose,
-      },
-    ],
-    [headerActions, icon, iconAriaLabel, id, onClose, open]
-  );
+  // Пользовательские действия первыми, кнопка сворачивания — последней, крайняя справа.
+  const cardHeaderActions: CardHeaderAction[] = [
+    ...headerActions,
+    {
+      ariaControls: id,
+      ariaExpanded: open,
+      ariaLabel: iconAriaLabel,
+      icon,
+      onClick: onClose,
+    },
+  ];
 
-  /* rendered — слот в DOM (открыт или доигрывает закрытие); expanded — визуально раскрыт. */
+  // isRendered — слот в DOM, открыт или доигрывает закрытие. isExpanded — визуально раскрыт.
   const [prevOpen, setPrevOpen] = useState(open);
-  const [rendered, setRendered] = useState(open);
-  const [expanded, setExpanded] = useState(false);
+  const [isRendered, setIsRendered] = useState(open);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  /* Синхронизация во время рендера: при открытии монтируем, при закрытии сворачиваем. */
+  // Синхронизирует состояние во время рендера: при открытии добавляет слот в DOM, при закрытии сворачивает.
   if (open !== prevOpen) {
     setPrevOpen(open);
 
     if (open) {
-      setRendered(true);
+      setIsRendered(true);
     } else {
-      setExpanded(false);
+      setIsExpanded(false);
     }
   }
 
+  /**
+   * После появления слота в DOM при `open` раскрывает панель на следующем кадре,
+   * чтобы сыграла enter-анимация.
+   */
   useLayoutEffect(() => {
     if (!open) {
       return;
     }
 
-    /* Кадр задержки: смонтировать закрытым, затем раскрыть — иначе enter-анимация не играет. */
+    // Кадр задержки: сначала слот в DOM закрыт, затем раскрывает — иначе enter-анимация не играет.
     const frameId = requestAnimationFrame(() => {
-      setExpanded(true);
+      setIsExpanded(true);
     });
 
     return () => {
@@ -106,38 +197,34 @@ export function Sidebar({
   }, [open]);
 
   function handleTransitionEnd(event: TransitionEvent<HTMLDivElement>): void {
-    /* Размонтируем слот только после завершения сворачивания. */
+    // Убирает слот из DOM только после завершения сворачивания.
     if (event.propertyName === 'transform' && !open) {
-      setRendered(false);
+      setIsRendered(false);
     }
   }
 
   return (
-    <StyledSidebar
-      offset={offset}
-      paddingBlockEnd={paddingBlockEnd}
-      paddingBlockStart={paddingBlockStart}
-      paddingInlineEnd={paddingInlineEnd}
-      paddingInlineStart={paddingInlineStart}
-    >
+    <StyledSidebar {...layoutProps}>
       <StyledSidebarContent ref={contentRef}>{children}</StyledSidebarContent>
 
       <StyledSidebarSlot
-        aria-hidden={!rendered}
+        aria-hidden={!isRendered}
         aria-labelledby={titleId}
-        data-expanded={expanded}
-        data-open={rendered}
+        data-expanded={isExpanded}
+        data-open={isRendered}
         id={id}
       >
-        <StyledSidebarTrack data-open={expanded} onTransitionEnd={handleTransitionEnd}>
+        <StyledSidebarTrack data-open={isExpanded} onTransitionEnd={handleTransitionEnd}>
+          {/*
+            Нижний отступ Card равен 0: тень контента панели уходит в
+            paddingBlockEnd ScrollPort у вызывающего кода.
+          */}
           <Card
             headerActions={cardHeaderActions}
-            inlineSize="100%"
-            minBlockSize="0"
-            minInlineSize="0"
+            paddingBlockEnd={0}
             title={title}
             titleId={titleId}
-            {...cardProps}
+            {...restProps}
           >
             {sidebarContent}
           </Card>

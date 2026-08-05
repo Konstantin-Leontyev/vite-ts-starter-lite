@@ -1,5 +1,24 @@
+/**
+ * Файл: `src/icons/search.tsx`
+ * Предоставляет svg-иконку поиска.
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент SearchIcon
+ *
+ * Потребители:
+ *  - `src/pages/showcase/showcase-icon-options.tsx` — включает в опции витрины
+ */
+
 import { ICON_MUTED_LAYER_OPACITY } from './muted-layer';
 
+/**
+ * SearchIcon — отображает svg-иконку поиска.
+ *
+ * @example
+ * <Icon>
+ *   <SearchIcon />
+ * </Icon>
+ */
 export function SearchIcon() {
   return (
     <svg
@@ -9,21 +28,10 @@ export function SearchIcon() {
       xmlns="http://www.w3.org/2000/svg"
     >
       <g opacity={ICON_MUTED_LAYER_OPACITY} stroke="currentColor">
-        <path
-          d="M17.625 17.625L22 22"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
+        <circle cx="11.5" cy="11.5" r="9.5" strokeWidth="1.5" />
       </g>
       <g stroke="currentColor">
-        <circle
-          cx="11.375"
-          cy="11.375"
-          r="8.75"
-          strokeLinejoin="round"
-          strokeWidth="2"
-        />
+        <path d="M20 20L22 22" strokeLinecap="round" strokeWidth="1.5" />
       </g>
     </svg>
   );

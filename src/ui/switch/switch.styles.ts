@@ -1,126 +1,246 @@
+/**
+ * Файл: `src/ui/switch/switch.styles.ts`
+ * Определяет внешний вид компонента Switch.
+ *
+ * Основные задачи:
+ * 1. Типизировать пропсы через `SwitchStyleProps`
+ * 2. Хранить габариты дорожки и бегунка в `switchTrackInlineSize`,
+ *    `switchTrackBlockSize` и `switchKnobSize`
+ * 3. Предоставить функцию `getSwitchTextSize`
+ * 4. Предоставить styled-узлы `StyledSwitchRoot` и `StyledSwitchTrack`
+ * 5. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
+ *
+ * Потребители:
+ *  - `src/ui/switch/index.tsx` — собирает компонент Switch и реэкспортирует публичное API
+ */
+
 import styled from 'styled-components';
 
 import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
-import { DEFAULT_SIZE_PRESET, type SizePreset } from '@ui/presets';
-import { spacingRem, type SpacingPx } from '@ui/spacing';
-import { DISABLED_OPACITY, getTheme, type AppTheme } from '@ui/theme';
-import { DEFAULT_TONE_PRESET, toneThemeColor, type TonePreset } from '@ui/tones';
+import { MOTION_CONTROL_DURATION, getTransitionStyles } from '@ui/motion';
+import { getOutlineStyles } from '@ui/outline';
+import {
+  DEFAULT_SIZE_PRESET,
+  getTextSize,
+  resolveBlockRadius,
+  type SizePreset,
+} from '@ui/presets';
+import { getSpacingValue, type SpacingValue } from '@ui/spacing';
+import { type TextSizePreset } from '@ui/text';
+import { getTheme, type AppTheme } from '@ui/theme';
+import { getToneColor, type TonePreset } from '@ui/tones';
 
 export { splitLayoutProps } from '@ui/layout';
 
-/** Габариты дорожки и бегунка — собственный ряд switch (мельче ряда контролов). */
-export const switchSizePresets = {
-  small: { trackInline: 28, trackBlock: 16, knob: 12 },
-  medium: { trackInline: 36, trackBlock: 20, knob: 16 },
-  large: { trackInline: 44, trackBlock: 24, knob: 20 },
-} as const satisfies Record<
-  SizePreset,
-  { knob: SpacingPx; trackBlock: SpacingPx; trackInline: SpacingPx }
->;
+/**
+ * switchTrackInlineSize — хранит ширину дорожки для каждого размера ряда.
+ * Ключ — размер из `SizePreset`, значение — ключ шкалы из `@ui/spacing`.
+ * Ряд компактнее контролов.
+ */
+const switchTrackInlineSize = {
+  small: 28,
+  normal: 36,
+  large: 48,
+} as const satisfies Record<SizePreset, SpacingValue>;
 
-/** Оси вида дорожки (без layout — он на корне). */
-export type SwitchTrackStyleProps = {
+/**
+ * getSwitchTrackInlineSize — возвращает CSS-ширину дорожки.
+ *
+ * @param sizePreset размер из ряда контролов
+ * @returns ширина дорожки в rem
+ */
+function getSwitchTrackInlineSize(sizePreset: SizePreset): string {
+  return getSpacingValue(switchTrackInlineSize[sizePreset]);
+}
+
+/**
+ * switchTrackBlockSize — хранит высоту дорожки для каждого размера ряда.
+ * Ключ — размер из `SizePreset`, значение — ключ шкалы из `@ui/spacing`.
+ */
+const switchTrackBlockSize = {
+  small: 16,
+  normal: 20,
+  large: 24,
+} as const satisfies Record<SizePreset, SpacingValue>;
+
+/**
+ * getSwitchTrackBlockSize — возвращает CSS-высоту дорожки.
+ *
+ * @param sizePreset размер из ряда контролов
+ * @returns высота дорожки в rem
+ */
+function getSwitchTrackBlockSize(sizePreset: SizePreset): string {
+  return getSpacingValue(switchTrackBlockSize[sizePreset]);
+}
+
+/**
+ * switchKnobSize — хранит диаметр бегунка для каждого размера ряда.
+ * Ключ — размер из `SizePreset`, значение — ключ шкалы из `@ui/spacing`.
+ */
+const switchKnobSize = {
+  small: 12,
+  normal: 16,
+  large: 20,
+} as const satisfies Record<SizePreset, SpacingValue>;
+
+/**
+ * getSwitchKnobSize — возвращает CSS-диаметр бегунка.
+ *
+ * @param sizePreset размер из ряда контролов
+ * @returns диаметр бегунка в rem
+ */
+function getSwitchKnobSize(sizePreset: SizePreset): string {
+  return getSpacingValue(switchKnobSize[sizePreset]);
+}
+
+/**
+ * getSwitchTextSize — возвращает размер подписи по `sizePreset`.
+ * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
+ *
+ * @param sizePreset размер дорожки
+ * @returns метка размера текста из `TextSizePreset` для подписи справа от дорожки
+ */
+export function getSwitchTextSize(sizePreset?: SizePreset): TextSizePreset {
+  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
+}
+
+/**
+ * SwitchStyleProps — представляет пропсы стилизации Switch и layout-пропсы.
+ *
+ * @property sizePreset — размер дорожки
+ * @property tone — тон включённого состояния
+ */
+export type SwitchStyleProps = LayoutProps & {
   sizePreset?: SizePreset;
   tone?: TonePreset;
 };
 
-/** Публичные пропы: layout — на корень, оси вида — на дорожку. */
-export type SwitchStyleProps = LayoutProps & SwitchTrackStyleProps;
-
-/** Оси вида приходят только на дорожку; layout идёт на корень-label, не сюда. */
-const SWITCH_TRACK_PROP_NAMES = new Set<string>(['sizePreset', 'tone']);
-
-/** Рамка дорожки: вычитается из инсета бегунка, иначе border-box смещает его вниз. */
-const TRACK_BORDER = '1px';
-
-export const StyledSwitchInput = styled.input`
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-`;
-
-/** Дорожка, бегунок и checked/focus-вид по осям sizePreset/tone. */
-export function getSwitchTrackStyles(
-  props: SwitchTrackStyleProps & { theme: AppTheme }
-): string {
-  const theme = getTheme(props);
-  const { sizePreset = DEFAULT_SIZE_PRESET, tone = DEFAULT_TONE_PRESET } = props;
-  const preset = switchSizePresets[sizePreset];
-  const trackInline = spacingRem(preset.trackInline);
-  const trackBlock = spacingRem(preset.trackBlock);
-  const knob = spacingRem(preset.knob);
-  // Бегунок центрируется инсетом (минус рамка: inset отсчитывается от padding-края)
-  // и проходит ровно (trackInline - trackBlock) — обе позиции смещены рамкой одинаково.
-  const knobInset = `calc((${trackBlock} - ${knob}) / 2 - ${TRACK_BORDER})`;
-  const knobTravel = `calc(${trackInline} - ${trackBlock})`;
-  const checkedBackground = toneThemeColor(theme, tone, theme.colors.primary);
-
-  return `
-    position: relative;
-    display: inline-block;
-    flex-shrink: 0;
-    inline-size: ${trackInline};
-    block-size: ${trackBlock};
-    background-color: ${theme.colors.border};
-    border: ${TRACK_BORDER} solid ${theme.colors.border};
-    border-radius: calc(${trackBlock} / 2);
-    transition:
-      background-color 0.15s ease,
-      border-color 0.15s ease;
-
-    &::after {
-      position: absolute;
-      inset-block-start: ${knobInset};
-      inset-inline-start: ${knobInset};
-      inline-size: ${knob};
-      block-size: ${knob};
-      content: '';
-      background-color: ${theme.colors.surface};
-      border-radius: 50%;
-      box-shadow: ${theme.shadow.surface};
-      transition: transform 0.15s ease;
-    }
-
-    ${StyledSwitchInput}:checked + & {
-      background-color: ${checkedBackground};
-      border-color: ${checkedBackground};
-    }
-
-    ${StyledSwitchInput}:checked + &::after {
-      transform: translateX(${knobTravel});
-    }
-
-    ${StyledSwitchInput}:focus-visible + & {
-      outline: 2px solid ${theme.colors.focusRing};
-      outline-offset: 2px;
-    }
-  `;
-}
-
-export const StyledSwitchTrack = styled.span.withConfig({
-  shouldForwardProp: (prop) => !SWITCH_TRACK_PROP_NAMES.has(prop),
-})<SwitchTrackStyleProps>`
-  ${(props) => getSwitchTrackStyles(props)}
-`;
-
+/**
+ * StyledSwitchRoot — задаёт корневой узел компонента Switch.
+ * Базируется на `<label>` и поддерживает layout-пропсы.
+ *
+ * Встроенные стили:
+ *  - `display: inline-grid` — дорожка и подпись в одной строке
+ *  - `grid-auto-flow: column` — элементы в ряд
+ *  - `gap` — отступ между дорожкой и подписью
+ *  - `align-items: center` — выравнивание по поперечной оси
+ *  - `justify-content: start` — при растяжении родителем подпись остаётся у дорожки
+ *  - `cursor: pointer` — кликабельная область корня
+ *
+ * Генерация стилей:
+ *  - `getLayoutStyles` — отступы, позиционирование, размеры
+ */
 export const StyledSwitchRoot = styled.label.withConfig({
   shouldForwardProp: (prop) => !LAYOUT_PROP_NAMES.has(prop),
 })<LayoutProps>`
   display: inline-grid;
   grid-auto-flow: column;
-  /* Треки к началу: при растяжении корня родителем лейбл остаётся прижат к дорожке. */
-  justify-content: start;
+  gap: ${getSpacingValue(8)};
   align-items: center;
-  gap: ${spacingRem(8)};
+  justify-content: start;
   cursor: pointer;
   ${(props) => getLayoutStyles(props)}
+`;
 
-  /* disabled приходит на скрытый input; корень-label глушим структурно через :has. */
-  &:has(:disabled) {
-    cursor: not-allowed;
-    opacity: ${DISABLED_OPACITY};
-  }
+/**
+ * SwitchTrackStyleProps — представляет пропсы стилизации дорожки Switch.
+ */
+type SwitchTrackStyleProps = Pick<SwitchStyleProps, 'sizePreset' | 'tone'>;
+
+/**
+ * SWITCH_TRACK_PROP_NAMES — хранит имена пропсов стилизации дорожки Switch.
+ */
+const SWITCH_TRACK_PROP_NAMES = new Set<string>(['sizePreset', 'tone']);
+
+/**
+ * DEFAULT_SWITCH_TONE — задаёт тон включённого состояния по умолчанию.
+ * Используется, когда вызывающий код не передал проп `tone`.
+ */
+const DEFAULT_SWITCH_TONE: TonePreset = 'primary';
+
+/**
+ * TRACK_BORDER — задаёт ширину рамки дорожки.
+ * Вычитается из смещения бегунка, иначе `border-box` смещает его вниз.
+ */
+const TRACK_BORDER = '1px';
+
+/**
+ * getSwitchTrackStyles — возвращает CSS-правила для узла `StyledSwitchTrack`:
+ * габариты, скругление, бегунок и checked/focus-вид по пропам `sizePreset` и `tone`.
+ * Состояния читаются со скрытого соседнего input через селектор `input:checked + &`.
+ *
+ * Как работает:
+ * 1. Берёт тему и подставляет дефолты `sizePreset` и `tone`
+ * 2. Считает габариты дорожки и бегунка по `sizePreset`
+ * 3. Центрирует бегунок смещением от края: из расчёта вычитает `TRACK_BORDER`,
+ *    потому что `inset` отсчитывается от края области отступа
+ * 4. Задаёт ход бегунка как ширину дорожки минус её высоту — обе позиции смещены
+ *    рамкой одинаково
+ * 5. Собирает заливку, рамку, `border-radius` через `resolveBlockRadius` с формой
+ *    `pill` по высоте дорожки, бегунок и checked/focus-вид. Цвет checked —
+ *    через `getToneColor` с запасным `theme.colors.border`
+ *
+ * @param props пропсы стилизации дорожки и тема
+ * @returns CSS-правила, каждое с новой строки
+ */
+function getSwitchTrackStyles(
+  props: SwitchTrackStyleProps & { theme: AppTheme }
+): string {
+  const theme = getTheme(props);
+  const { sizePreset = DEFAULT_SIZE_PRESET, tone = DEFAULT_SWITCH_TONE } = props;
+  const trackInlineSize = getSwitchTrackInlineSize(sizePreset);
+  const trackBlockSize = getSwitchTrackBlockSize(sizePreset);
+  const knobSize = getSwitchKnobSize(sizePreset);
+  const knobInset = `calc((${trackBlockSize} - ${knobSize}) / 2 - ${TRACK_BORDER})`;
+  const knobTravel = `calc(${trackInlineSize} - ${trackBlockSize})`;
+  const checkedBackground = getToneColor(theme, tone, theme.colors.border);
+
+  return `
+    position: relative;
+    inline-size: ${trackInlineSize};
+    block-size: ${trackBlockSize};
+    background-color: ${theme.colors.border};
+    border: ${TRACK_BORDER} solid ${theme.colors.border};
+    border-radius: ${resolveBlockRadius('pill', trackBlockSize)};
+    ${getTransitionStyles('background-color, border-color', MOTION_CONTROL_DURATION)}
+
+    &::after {
+      position: absolute;
+      inset-block-start: ${knobInset};
+      inset-inline-start: ${knobInset};
+      inline-size: ${knobSize};
+      block-size: ${knobSize};
+      content: '';
+      background-color: ${theme.colors.surface};
+      border-radius: 50%;
+      box-shadow: ${theme.shadow.surface};
+      ${getTransitionStyles('transform', MOTION_CONTROL_DURATION)}
+    }
+
+    input:checked + & {
+      background-color: ${checkedBackground};
+      border-color: ${checkedBackground};
+    }
+
+    input:checked + &::after {
+      transform: translateX(${knobTravel});
+    }
+
+    input:focus-visible + & {
+      ${getOutlineStyles(theme.colors.focusOutline)}
+    }
+  `;
+}
+
+/**
+ * StyledSwitchTrack — задаёт дорожку компонента Switch.
+ * Базируется на `<span>` и поддерживает пропсы из `SwitchTrackStyleProps`.
+ *
+ * Генерация стилей:
+ *  - `getSwitchTrackStyles` — габариты, скругление, бегунок, цвета и checked/focus-вид
+ */
+export const StyledSwitchTrack = styled.span.withConfig({
+  shouldForwardProp: (prop) => !SWITCH_TRACK_PROP_NAMES.has(prop),
+})<SwitchTrackStyleProps>`
+  ${(props) => getSwitchTrackStyles(props)}
 `;

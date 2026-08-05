@@ -1,53 +1,17 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-
-import { Header } from '@components/header';
-
-import { type ShellOutletContext } from './use-shell-outlet-context';
-
-const DESIGN_SYSTEM_PATH = '/design-system';
-
 /**
- * Каркас приложения. Хедер по умолчанию работает в режиме autoHide — уезжает наверх,
- * освобождая место для рабочей области. Это поведение задаётся пропом <Header autoHide />.
+ * Файл: `src/components/router/index.tsx`
+ * Объединяет конфигурацию маршрутов и контекст outlet в единую точку входа.
  *
- * Состояние autoHide и headerSettingsOpen, переключатель и развилка шестерёнки существуют
- * только ради витрины дизайн-системы — показать проп вживую. В продуктовом коде эта обвязка
- * не нужна: достаточно <Header autoHide />. Не переносить переключатель в продуктовый код.
+ * Основные задачи:
+ * 1. Реэкспортировать конфигурацию `router`
+ * 2. Реэкспортировать хук `useShellOutletContext`
+ *
+ * Потребители:
+ *  - `src/main.tsx` — подключает `router` через `RouterProvider`
+ *  - `src/pages/showcase/index.tsx` — читает контекст outlet для настроек шапки
  */
-export function RouterLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [autoHide, setAutoHide] = useState(true);
-  const [headerSettingsOpen, setHeaderSettingsOpen] = useState(false);
 
-  const isDesignSystem = location.pathname === DESIGN_SYSTEM_PATH;
+import { router } from './router';
+import { useShellOutletContext } from './use-shell-outlet-context';
 
-  /* Обвязка ВИТРИНЫ: на странице ДС шестерёнка открывает панель настроек хедера (где
-     живьём виден autoHide), на остальных — ведёт на ДС. В реальном проекте такой развилки
-     не нужно — поведение хедера задаётся пропом <Header autoHide />. */
-  const handleSettingsClick = useCallback((): void => {
-    if (isDesignSystem) {
-      setHeaderSettingsOpen(true);
-      return;
-    }
-
-    navigate(DESIGN_SYSTEM_PATH);
-  }, [isDesignSystem, navigate]);
-
-  const outletContext = useMemo<ShellOutletContext>(
-    () => ({ autoHide, headerSettingsOpen, setAutoHide, setHeaderSettingsOpen }),
-    [autoHide, headerSettingsOpen]
-  );
-
-  return (
-    <>
-      <Header
-        autoHide={autoHide}
-        settingsLabel={isDesignSystem ? 'Header settings' : 'Design system'}
-        onSettingsClick={handleSettingsClick}
-      />
-      <Outlet context={outletContext} />
-    </>
-  );
-}
+export { router, useShellOutletContext };

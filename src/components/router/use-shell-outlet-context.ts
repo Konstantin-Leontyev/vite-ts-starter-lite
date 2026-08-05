@@ -1,17 +1,41 @@
+/**
+ * Файл: `src/components/router/use-shell-outlet-context.ts`
+ * Предоставляет тип и хук для чтения контекста outlet каркаса приложения.
+ *
+ * Основные задачи:
+ * 1. Типизировать контекст через `ShellOutletContext`
+ * 2. Предоставить хук `useShellOutletContext`
+ *
+ * Потребители:
+ *  - `src/components/router/index.tsx` — реэкспортирует `useShellOutletContext`
+ *  - `src/components/router/router-layout.tsx` — формирует контекст outlet по типу `ShellOutletContext`
+ *  - `src/pages/showcase/index.tsx` — переключает режим шапки в витрине
+ */
+
 import { useOutletContext } from 'react-router-dom';
 
 /**
- * Каркас (RouterLayout) хранит вид хедера и отдаёт его страницам через Outlet context.
- * Поля autoHide и headerSettingsOpen нужны только странице дизайн-системы — она вживую
- * переключает режим хедера. Обычным страницам этот контекст не нужен.
+ * ShellOutletContext — представляет контекст outlet каркаса приложения.
+ * Поля `autoHide` и `isHeaderSettingsOpen` нужны витрине дизайн-системы для настройки
+ * шапки в реальном времени.
+ *
+ * @property autoHide — включает автоскрытие шапки
+ * @property isHeaderSettingsOpen — включает открытое состояние панели настроек шапки в витрине
+ * @property setAutoHide — меняет значение `autoHide`
+ * @property setIsHeaderSettingsOpen — меняет значение `isHeaderSettingsOpen`
  */
 export type ShellOutletContext = {
   autoHide: boolean;
-  headerSettingsOpen: boolean;
+  isHeaderSettingsOpen: boolean;
   setAutoHide: (value: boolean) => void;
-  setHeaderSettingsOpen: (value: boolean) => void;
+  setIsHeaderSettingsOpen: (value: boolean) => void;
 };
 
+/**
+ * useShellOutletContext — возвращает контекст outlet каркаса приложения.
+ *
+ * @returns контекст с состоянием шапки и функциями его изменения
+ */
 export function useShellOutletContext(): ShellOutletContext {
   return useOutletContext<ShellOutletContext>();
 }

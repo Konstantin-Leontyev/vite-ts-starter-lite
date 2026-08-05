@@ -1,7 +1,38 @@
-import { useId, type CSSProperties, type ComponentPropsWithRef } from 'react';
-import { useTheme } from 'styled-components';
+/**
+ * Файл: `src/ui/input/index.tsx`
+ * Предоставляет компонент Input для отображения однострочного текстового поля.
+ *
+ * Поддерживает:
+ *  - layout-пропсы: отступы, позиционирование, размеры
+ *  - размерный ряд через проп `sizePreset`
+ *  - форму строки-поля через проп `shape`
+ *  - рамку контрола через проп `showBorder`
+ *  - тень через проп `showShadow`
+ *  - тон рамки через проп `borderTone`
+ *  - горизонтальное выравнивание значения через проп `textAlign`
+ *  - курсив значения через проп `textItalic`
+ *  - подпись над полем через проп `label`
+ *  - встроенную строку ошибки через проп `error`
+ *  - серую подсказку в полоске ошибки через проп `errorPlaceholder`
+ *  - обводку ошибки без текста через проп `invalid`
+ *  - резерв высоты под строку ошибки через проп `reserveErrorSpace`
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент Input
+ * 2. Типизировать пропсы через `InputProps`
+ * 3. Связывать подпись, поле и строку ошибки для доступности
+ *
+ * Потребители:
+ *  - контролы и панели настроек витрины дизайн-системы, например TextGroup и InputSettings —
+ *    рендерят поля ввода настроек
+ *  - страницы и виджеты приложения — собирают формы и фильтры
+ *  - `src/pages/showcase` — демонстрирует состояния в витрине
+ */
 
-import { Text } from '@ui/text';
+import { useId, type ComponentPropsWithRef } from 'react';
+
+import { FieldError } from '@ui/field-error';
+import { FieldLabel } from '@ui/field-label';
 
 import {
   StyledInputControl,
@@ -10,71 +41,72 @@ import {
   type InputStyleProps,
 } from './input.styles';
 
+/**
+ * DEFAULT_INPUT_INVALID — задаёт состояние обводки ошибки по умолчанию.
+ * Используется, когда вызывающий код не передал проп `invalid`.
+ */
+const DEFAULT_INPUT_INVALID = false;
+
+/**
+ * InputProps — представляет пропсы компонента Input.
+ *
+ * @property error — текст ошибки под полем
+ * @property errorPlaceholder — серая подсказка в полоске ошибки, пока нет ошибки
+ * @property invalid — включает обводку ошибки без текста, если проп `error` не передан
+ * @property label — подпись над полем
+ * @property reserveErrorSpace — включает резерв высоты под строку ошибки, чтобы появление текста не сдвигало соседей
+ */
 type InputProps = InputStyleProps & {
   error?: string;
-  errorAlign?: CSSProperties['textAlign'];
-  /** invalidRing без текста ошибки — когда сообщение снаружи (RangeInput и т.п.). */
+  errorPlaceholder?: string;
   invalid?: boolean;
   label?: string;
-  /** Резерв высоты под строку ошибки, чтобы появление ошибки не сдвигало соседей. */
   reserveErrorSpace?: boolean;
-} & Omit<ComponentPropsWithRef<'input'>, keyof InputStyleProps | 'className' | 'style'>;
+} & Omit<ComponentPropsWithRef<'input'>, 'className' | 'style' | keyof InputStyleProps>;
 
+/**
+ * Input — отображает однострочное текстовое поле с подписью и строкой ошибки.
+ *
+ * @example
+ * <Input label="Email" placeholder="name@example.com" />
+ * <Input error="Required field" reserveErrorSpace />
+ */
 export function Input({
-  align,
   error,
-  errorAlign = 'center',
-  invalid = false,
+  errorPlaceholder,
+  invalid = DEFAULT_INPUT_INVALID,
   label,
-  reserveErrorSpace = true,
-  shape,
-  sizePreset,
+  reserveErrorSpace,
   ...rest
 }: InputProps) {
-  const theme = useTheme();
-  const { layout, rest: control } = splitLayoutProps(rest);
-  const { 'aria-describedby': ariaDescribedBy, ...inputControl } = control;
+  const { layoutProps, restProps } = splitLayoutProps(rest);
   const fallbackId = useId();
-  const id = inputControl.id ?? fallbackId;
+  const id = restProps.id ?? fallbackId;
   const errorId = `${id}-error`;
   const hasError = Boolean(error?.trim());
   const isInvalid = hasError || invalid;
-  const showError = hasError || reserveErrorSpace;
   const describedBy =
-    [hasError ? errorId : null, ariaDescribedBy].filter(Boolean).join(' ') || undefined;
+    [hasError ? errorId : null, restProps['aria-describedby']]
+      .filter(Boolean)
+      .join(' ') || undefined;
 
   return (
-    <StyledInputRoot {...layout}>
-      {Boolean(label) && (
-        <Text as="label" color={theme.colors.muted} htmlFor={id} sizePreset="medium">
-          {label}
-        </Text>
-      )}
+    <StyledInputRoot {...layoutProps}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <StyledInputControl
         type="text"
-        {...inputControl}
-        align={align}
+        {...restProps}
         aria-describedby={describedBy}
-        aria-invalid={isInvalid || undefined}
+        aria-invalid={isInvalid ? true : undefined}
         id={id}
-        shape={shape}
-        sizePreset={sizePreset}
       />
-      {showError && (
-        <Text
-          align={errorAlign}
-          aria-live="polite"
-          as="p"
-          color={theme.colors.danger}
-          id={errorId}
-          minBlockSize={reserveErrorSpace ? '1.25rem' : undefined}
-          sizePreset="thin"
-        >
-          {hasError ? error : null}
-        </Text>
-      )}
+      <FieldError
+        id={errorId}
+        placeholder={errorPlaceholder}
+        reserveErrorSpace={reserveErrorSpace}
+      >
+        {error}
+      </FieldError>
     </StyledInputRoot>
   );
 }
-
-export type { InputStyleProps } from './input.styles';

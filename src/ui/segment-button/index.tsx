@@ -1,168 +1,121 @@
-import {
-  Fragment,
-  type ComponentPropsWithRef,
-  type ReactNode,
-  type RefObject,
-} from 'react';
-import { useTheme } from 'styled-components';
+/**
+ * Файл: `src/ui/segment-button/index.tsx`
+ * Предоставляет компонент SegmentButton для отображения сегментного ряда действий.
+ *
+ * Поддерживает:
+ *  - layout-пропсы: отступы, позиционирование, размеры
+ *  - размерный ряд через проп `sizePreset`
+ *  - форму оболочки через проп `shape`
+ *  - левый сегмент через проп `left`
+ *  - средний сегмент через проп `center`. Без `center` ряд из двух сегментов
+ *  - правый сегмент через проп `right`
+ *  - подпись над рядом через проп `label`
+ *  - размер текста сегмента через проп `textSize`
+ *  - курсив текста сегмента через проп `textItalic`
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент SegmentButton
+ * 2. Типизировать пропсы через `SegmentButtonProps`
+ * 3. Выставлять `role="group"` и `aria-labelledby` при передаче `label`
+ * 4. Реэкспортировать мост размера текста `getSegmentButtonTextSize`
+ *
+ * Потребители:
+ *  - компоненты приложения, например ProfileMenu — переключают режимы и действия
+ *  - `@ui/date-range-input` — берёт размер текста сегментов через `getSegmentButtonTextSize`
+ *  - `src/pages/showcase` — демонстрирует состояния в витрине
+ */
 
-import { useLongPress } from '@hooks/use-long-press';
-import { textSizePreset, type ShapePreset, type SizePreset } from '@ui/presets';
-import { Text } from '@ui/text';
+import { useId, type ComponentPropsWithRef } from 'react';
+
+import { FieldLabel } from '@ui/field-label';
+import {
+  SegmentButtonParts,
+  type SegmentButtonPartsProps,
+} from '@ui/segment-button-parts';
+import { type TextSizePreset } from '@ui/text';
 
 import {
   StyledSegmentButton,
-  StyledSegmentButtonDivider,
-  StyledSegmentButtonPart,
-  resolveSegmentTextColor,
+  StyledSegmentButtonRoot,
+  getSegmentButtonTextSize,
+  splitLayoutProps,
   type SegmentButtonStyleProps,
-  type SegmentTextColor,
 } from './segment-button.styles';
 
-type SegmentButtonAction = {
-  active?: boolean;
-  ariaControls?: string;
-  ariaExpanded?: boolean;
-  ariaHaspopup?: 'dialog' | 'listbox';
-  disabled?: boolean;
-  icon?: ReactNode;
-  ref?: RefObject<HTMLButtonElement | null>;
-  text: string;
-  textColor?: SegmentTextColor;
-  onClick?: () => void;
-  onDoubleClick?: () => void;
-  onLongPress?: () => void;
-  title?: string;
-};
-
-type SegmentButtonSegments =
-  | { center: SegmentButtonAction; right: SegmentButtonAction }
-  | { center: SegmentButtonAction; right?: undefined }
-  | { center?: undefined; right: SegmentButtonAction };
-
+/**
+ * SegmentButtonProps — представляет пропсы компонента SegmentButton.
+ *
+ * @property label — подпись над рядом сегментов
+ * @property textItalic — включает курсив текста сегмента
+ * @property textSize — размер текста сегмента
+ */
 type SegmentButtonProps = {
-  embedded?: boolean;
-  left: SegmentButtonAction;
-} & Omit<SegmentButtonStyleProps, 'embedded' | 'left' | 'right'> &
-  SegmentButtonSegments &
+  label?: string;
+  textItalic?: boolean;
+  textSize?: TextSizePreset;
+} & Omit<SegmentButtonStyleProps, 'left' | 'right'> &
+  Pick<SegmentButtonPartsProps, 'center' | 'left' | 'right'> &
   Omit<
     ComponentPropsWithRef<'div'>,
-    keyof SegmentButtonStyleProps | 'center' | 'className' | 'left' | 'right' | 'style'
+    'center' | 'className' | 'left' | 'right' | 'style' | keyof SegmentButtonStyleProps
   >;
 
-function SegmentButtonPart({
-  action,
-  shape,
-  sizePreset,
-}: {
-  action: SegmentButtonAction;
-  shape?: ShapePreset;
-  sizePreset?: SizePreset;
-}) {
-  const theme = useTheme();
-  const {
-    active,
-    ariaControls,
-    ariaExpanded,
-    ariaHaspopup,
-    disabled,
-    icon,
-    ref,
-    text,
-    textColor,
-    onClick,
-    onDoubleClick,
-    onLongPress,
-    title,
-  } = action;
-
-  const { pointerProps, suppressNextClick } = useLongPress({ disabled, onLongPress });
-
-  function handleClick(): void {
-    if (suppressNextClick()) {
-      return;
-    }
-
-    onClick?.();
-  }
-
-  const color = resolveSegmentTextColor(theme, textColor, active);
-
-  return (
-    <StyledSegmentButtonPart
-      ref={ref}
-      aria-controls={ariaControls}
-      aria-expanded={ariaExpanded}
-      aria-haspopup={ariaHaspopup}
-      aria-current={active ? 'true' : undefined}
-      disabled={disabled}
-      shape={shape}
-      sizePreset={sizePreset}
-      title={title}
-      type="button"
-      onClick={onClick || onLongPress ? handleClick : undefined}
-      onDoubleClick={onDoubleClick}
-      {...(pointerProps ?? {})}
-    >
-      {icon}
-      <Text
-        color={color}
-        ellipsis
-        minInlineSize="0"
-        sizePreset={textSizePreset(sizePreset)}
-      >
-        {text}
-      </Text>
-    </StyledSegmentButtonPart>
-  );
-}
-
+/**
+ * SegmentButton — отображает сегментный ряд действий в общей оболочке.
+ *
+ * @example
+ * <SegmentButton
+ *   left={{ label: 'Day', onClick: showDay }}
+ *   right={{ label: 'Week', onClick: showWeek }}
+ * />
+ * <SegmentButton
+ *   left={{ label: 'A', active: true }}
+ *   center={{ label: 'B' }}
+ *   right={{ label: 'C' }}
+ *   sizePreset="normal"
+ * />
+ */
 export function SegmentButton({
   center,
-  embedded = false,
+  label,
   left,
   ref,
   right,
   shape,
   sizePreset,
+  textItalic,
+  textSize,
   ...rest
 }: SegmentButtonProps) {
-  const segmentSlots: Array<{ key: string; action: SegmentButtonAction }> = [
-    { key: 'left', action: left },
-    ...(center != null ? [{ key: 'center', action: center }] : []),
-    ...(right != null ? [{ key: 'right', action: right }] : []),
-  ];
+  const { layoutProps, restProps } = splitLayoutProps(rest);
+  const labelId = useId();
+  const labelledBy = label ? labelId : undefined;
+  const resolvedTextSize = textSize ?? getSegmentButtonTextSize(sizePreset);
 
-  if (segmentSlots.length < 2) {
-    throw new Error(
-      'SegmentButton requires at least two segments. Use a button for a single action.'
-    );
-  }
+  const partsProps = {
+    left,
+    shape,
+    sizePreset,
+    textItalic,
+    textSize: resolvedTextSize,
+    ...(center != null ? { center, right } : { right }),
+  } as SegmentButtonPartsProps;
 
   return (
-    <StyledSegmentButton
+    <StyledSegmentButtonRoot
+      aria-labelledby={labelledBy}
       ref={ref}
-      data-segments={segmentSlots.length}
-      embedded={embedded}
-      shape={shape}
-      sizePreset={sizePreset}
-      {...rest}
+      role={labelledBy ? 'group' : undefined}
+      {...layoutProps}
+      {...restProps}
     >
-      {segmentSlots.map((slot, index) => (
-        <Fragment key={slot.key}>
-          {index > 0 && (
-            <StyledSegmentButtonDivider aria-hidden="true" sizePreset={sizePreset} />
-          )}
-          <SegmentButtonPart
-            action={slot.action}
-            shape={shape}
-            sizePreset={sizePreset}
-          />
-        </Fragment>
-      ))}
-    </StyledSegmentButton>
+      <FieldLabel id={labelId}>{label}</FieldLabel>
+      <StyledSegmentButton shape={shape} sizePreset={sizePreset}>
+        <SegmentButtonParts {...partsProps} />
+      </StyledSegmentButton>
+    </StyledSegmentButtonRoot>
   );
 }
 
-export type { SegmentButtonStyleProps, SegmentTextColor } from './segment-button.styles';
-export { SEGMENT_TEXT_COLOR_OPTIONS } from './segment-button.styles';
+/* eslint-disable react-refresh/only-export-components -- реэкспорт моста размера текста */
+export { getSegmentButtonTextSize };

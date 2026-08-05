@@ -1,85 +1,177 @@
+/**
+ * Файл: `src/ui/combobox/index.tsx`
+ * Предоставляет компонент Combobox для отображения выбора значения из списка с поиском.
+ *
+ * Поддерживает:
+ *  - layout-пропсы: отступы, позиционирование, размеры
+ *  - размерный ряд через проп `sizePreset`
+ *  - форму через проп `shape`
+ *  - тон глифа шеврона через проп `iconFill`
+ *  - позицию шеврона через проп `iconPosition`
+ *  - тон секции шеврона через проп `iconTone`
+ *  - начальное значение через проп `defaultValue`
+ *  - недоступное состояние через проп `disabled`
+ *  - текст пустого результата поиска через проп `emptyMessage`
+ *  - подпись над триггером через проп `label`
+ *  - обработчик изменения значения через проп `onChange`
+ *  - опции списка через проп `options`
+ *  - плейсхолдер неактивного триггера через проп `placeholder`
+ *  - плейсхолдер поля поиска через проп `searchPlaceholder`
+ *  - контролируемое значение через проп `value`
+ *  - текстовую метку через проп `aria-label`
+ *  - опциональный сброс выбора через проп `showClear`. Базовая логика — шеврон.
+ *    Clear появляется при выборе, только когда проп включён
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент Combobox
+ * 2. Типизировать пропсы через `ComboboxProps`
+ * 3. Экспортировать тип `ComboboxOption`
+ * 4. Выставлять `role` и `aria`-атрибуты триггера и панели
+ *
+ * Потребители:
+ *  - `src/pages/showcase/icon-group/index.tsx` — выбирает глиф иконки
+ *  - `src/pages/showcase/card-settings/index.tsx` — выбирает иконку действия шапки
+ *  - `src/pages/showcase` — демонстрирует состояния в витрине
+ */
+
 import {
-  useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ChangeEvent,
+  type ComponentPropsWithRef,
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import { createPortal } from 'react-dom';
-import { useTheme } from 'styled-components';
 
-import { useAnchoredDismiss } from '@hooks/use-anchored-dismiss';
-import { useFocusTrap } from '@hooks/use-focus-trap';
-import { CheckIcon } from '@icons/check';
-import { ChevronDownIcon } from '@icons/chevron-down';
+import { useAnchoredOpen } from '@hooks/use-anchored-open';
+import { CheckIcon, ChevronDownIcon, CloseIcon } from '@icons';
+import { resolveClearAriaLabel } from '@ui/a11y';
+import { AnchoredPortal } from '@ui/anchored-portal';
+import { FieldLabel } from '@ui/field-label';
+import { DEFAULT_ICON_POSITION, Icon, type IconPosition } from '@ui/icon';
 import { Input } from '@ui/input';
-import {
-  textSizePreset as resolveTextSizePreset,
-  valuePaddingInline as resolveValuePaddingInline,
-} from '@ui/presets';
-import { ScrollPort } from '@ui/scroll-port';
 import { Text } from '@ui/text';
+import { type TonePreset } from '@ui/tones';
+import { PORTAL_VIEWPORT_EDGE_INSET } from '@ui/viewport';
 
 import {
-  StyledComboboxCheck,
-  StyledComboboxChevron,
-  StyledComboboxChevronBox,
   StyledComboboxList,
   StyledComboboxOption,
-  StyledComboboxOptionIcon,
   StyledComboboxPanel,
   StyledComboboxRoot,
   StyledComboboxSearchRow,
   StyledComboboxTrigger,
+  StyledComboboxTriggerRow,
   StyledComboboxValue,
+  getComboboxTextSize,
   splitLayoutProps,
   type ComboboxStyleProps,
 } from './combobox.styles';
 
-/** Внешний зазор открытой панели: outline 2px + outline-offset 2px. */
-const PANEL_OUTER_INSET = 4;
-
-/** Минимум видимых строк списка; ниже него панель сдвигается вверх, чтобы влезть. */
+/**
+ * MIN_VISIBLE_OPTION_ROWS — задаёт минимум видимых строк списка в панели.
+ * Используется в `applyComboboxPanelPosition` для расчёта минимальной высоты панели.
+ */
 const MIN_VISIBLE_OPTION_ROWS = 4;
 
-const DEFAULT_SEARCH_PLACEHOLDER = 'Search…';
-const DEFAULT_EMPTY_MESSAGE = 'Nothing found';
+/**
+ * DEFAULT_COMBOBOX_DISABLED — задаёт недоступное состояние по умолчанию.
+ * Используется, когда вызывающий код не передал проп `disabled`.
+ */
+const DEFAULT_COMBOBOX_DISABLED = false;
 
+/**
+ * DEFAULT_COMBOBOX_EMPTY_MESSAGE — задаёт текст пустого результата поиска по умолчанию.
+ * Используется, когда вызывающий код не передал проп `emptyMessage`.
+ */
+const DEFAULT_COMBOBOX_EMPTY_MESSAGE = 'Nothing found';
+
+/**
+ * DEFAULT_COMBOBOX_PLACEHOLDER — задаёт плейсхолдер неактивного триггера по умолчанию.
+ * Используется, когда вызывающий код не передал проп `placeholder`.
+ */
+const DEFAULT_COMBOBOX_PLACEHOLDER = 'Select…';
+
+/**
+ * DEFAULT_COMBOBOX_SEARCH_PLACEHOLDER — задаёт плейсхолдер поля поиска по умолчанию.
+ * Используется, когда вызывающий код не передал проп `searchPlaceholder`.
+ */
+const DEFAULT_COMBOBOX_SEARCH_PLACEHOLDER = 'Search…';
+
+/**
+ * DEFAULT_COMBOBOX_SHOW_CLEAR — задаёт показ кнопки сброса выбора по умолчанию.
+ * Используется, когда вызывающий код не передал проп `showClear`.
+ */
+const DEFAULT_COMBOBOX_SHOW_CLEAR = false;
+
+/**
+ * ComboboxOption — представляет опцию списка Combobox.
+ *
+ * @property disabled — включает недоступное состояние опции
+ * @property icon — слот перед `label`, например флаг локали или иконка
+ * @property label — содержимое подписи опции
+ * @property value — стабильный ключ опции
+ */
 export type ComboboxOption = {
   disabled?: boolean;
-  /** Слот перед label: флаг локали, иконка и т.п. */
   icon?: ReactNode;
   label: string;
   value: string;
 };
 
-export type ComboboxProps = ComboboxStyleProps & {
-  /** Доступное имя триггера, когда видимый `label` не используется. */
+/**
+ * ComboboxProps — представляет пропсы компонента Combobox.
+ *
+ * @property aria-label — текстовая метка триггера
+ * @property defaultValue — начальное значение в неконтролируемом режиме
+ * @property disabled — включает недоступное состояние
+ * @property emptyMessage — текст при пустом результате поиска
+ * @property iconFill — тон глифа шеврона при нейтральном `iconTone`
+ * @property iconPosition — позиция шеврона относительно значения
+ * @property label — подпись над триггером
+ * @property onChange — обработчик изменения значения
+ * @property options — опции списка
+ * @property placeholder — плейсхолдер неактивного триггера
+ * @property searchPlaceholder — плейсхолдер поля поиска
+ * @property showClear — включает кнопку сброса выбора при выбранном значении
+ * @property value — контролируемое значение
+ */
+type ComboboxProps = ComboboxStyleProps & {
   'aria-label'?: string;
   defaultValue?: string;
   disabled?: boolean;
-  /** Текст при пустом результате поиска. */
   emptyMessage?: string;
-  /** Встроенная подпись над триггером (как у Input). */
+  iconFill?: TonePreset;
+  iconPosition?: IconPosition;
   label?: string;
   onChange?: (value: string) => void;
-  options: ComboboxOption[];
+  options: readonly ComboboxOption[];
   placeholder?: string;
-  /** Резерв высоты под строку ошибки — для общей сетки с полями формы. */
-  reserveErrorSpace?: boolean;
   searchPlaceholder?: string;
+  showClear?: boolean;
   value?: string;
-};
+} & Omit<
+    ComponentPropsWithRef<'div'>,
+    'className' | 'onChange' | 'style' | keyof ComboboxStyleProps
+  >;
 
+/**
+ * filterComboboxOptions — возвращает опции, подходящие под нормализованный запрос.
+ *
+ * Как работает:
+ * 1. Без запроса возвращает исходный перечень
+ * 2. Иначе оставляет опции, чей `label` содержит нормализованный запрос
+ *
+ * @param options опции списка
+ * @param normalizedQuery нормализованная строка поиска
+ * @returns отфильтрованный перечень опций
+ */
 function filterComboboxOptions(
-  options: ComboboxOption[],
+  options: readonly ComboboxOption[],
   normalizedQuery: string
-): ComboboxOption[] {
+): readonly ComboboxOption[] {
   if (!normalizedQuery) {
     return options;
   }
@@ -89,10 +181,22 @@ function filterComboboxOptions(
   );
 }
 
+/**
+ * findEnabledIndex — возвращает индекс ближайшей доступной опции по шагу.
+ *
+ * Как работает:
+ * 1. Идёт от `from` шагом `step` в пределах списка
+ * 2. Возвращает первый индекс без `disabled` или `-1`
+ *
+ * @param options опции списка
+ * @param from индекс старта обхода
+ * @param step направление обхода
+ * @returns индекс доступной опции или `-1`
+ */
 function findEnabledIndex(
-  options: ComboboxOption[],
+  options: readonly ComboboxOption[],
   from: number,
-  step: 1 | -1
+  step: -1 | 1
 ): number {
   for (let cursor = from; cursor >= 0 && cursor < options.length; cursor += step) {
     if (!options[cursor].disabled) {
@@ -103,32 +207,97 @@ function findEnabledIndex(
   return -1;
 }
 
+/**
+ * applyComboboxPanelPosition — позиционирует панель относительно триггера.
+ *
+ * Как работает:
+ * 1. Берёт геометрию триггера и ограничивает `left` вьюпортом с учётом
+ *    `PORTAL_VIEWPORT_EDGE_INSET`
+ * 2. Считает минимальную высоту панели: высота поиска плюс высота строк —
+ *    не меньше одной и не больше `MIN_VISIBLE_OPTION_ROWS`
+ * 3. Поджимает `top`, если панель не влезает снизу, и не даёт уйти выше
+ *    отступа вьюпорта
+ * 4. Выставляет `left`, `width`, `maxHeight` и `top`
+ *
+ * @param trigger элемент-триггер
+ * @param panel элемент панели
+ * @param optionCount число опций в списке
+ * @param searchInputHeight высота поля поиска
+ */
+function applyComboboxPanelPosition(
+  trigger: HTMLElement,
+  panel: HTMLElement,
+  optionCount: number,
+  searchInputHeight: number | undefined
+): void {
+  const triggerRect = trigger.getBoundingClientRect();
+  const rowHeight = triggerRect.height;
+  const maxLeft = Math.max(
+    PORTAL_VIEWPORT_EDGE_INSET,
+    window.innerWidth - triggerRect.width - PORTAL_VIEWPORT_EDGE_INSET
+  );
+  const left = Math.min(Math.max(PORTAL_VIEWPORT_EDGE_INSET, triggerRect.left), maxLeft);
+  const searchHeight = searchInputHeight ?? rowHeight;
+  const reservedRows = Math.min(MIN_VISIBLE_OPTION_ROWS, Math.max(1, optionCount));
+  const minPanelHeight = searchHeight + reservedRows * rowHeight;
+
+  let top = triggerRect.top;
+
+  if (top + minPanelHeight > window.innerHeight - PORTAL_VIEWPORT_EDGE_INSET) {
+    top = window.innerHeight - PORTAL_VIEWPORT_EDGE_INSET - minPanelHeight;
+  }
+
+  top = Math.max(PORTAL_VIEWPORT_EDGE_INSET, top);
+  const maxBlockSize = window.innerHeight - top - PORTAL_VIEWPORT_EDGE_INSET;
+
+  panel.style.left = `${left}px`;
+  panel.style.width = `${triggerRect.width}px`;
+  panel.style.maxHeight = `${Math.max(rowHeight, maxBlockSize)}px`;
+  panel.style.top = `${top}px`;
+}
+
+/**
+ * Combobox — отображает выбор значения из списка с поиском в панели.
+ *
+ * @example
+ * <Combobox
+ *   label="Locale:"
+ *   options={options}
+ *   value={value}
+ *   onChange={setValue}
+ * />
+ */
 export function Combobox({
   'aria-label': ariaLabel,
   defaultValue,
-  disabled = false,
-  emptyMessage = DEFAULT_EMPTY_MESSAGE,
+  disabled = DEFAULT_COMBOBOX_DISABLED,
+  emptyMessage = DEFAULT_COMBOBOX_EMPTY_MESSAGE,
+  iconFill,
+  iconPosition = DEFAULT_ICON_POSITION,
+  iconTone,
   label,
   onChange,
   options,
-  placeholder = 'Select…',
-  reserveErrorSpace = true,
-  searchPlaceholder = DEFAULT_SEARCH_PLACEHOLDER,
+  placeholder = DEFAULT_COMBOBOX_PLACEHOLDER,
+  searchPlaceholder = DEFAULT_COMBOBOX_SEARCH_PLACEHOLDER,
   shape,
+  showClear = DEFAULT_COMBOBOX_SHOW_CLEAR,
   sizePreset,
   value,
   ...rest
 }: ComboboxProps) {
-  const theme = useTheme();
-  const { layout } = splitLayoutProps(rest);
+  const { layoutProps, restProps } = splitLayoutProps(rest);
+  const surfaceProps = { iconTone, shape, sizePreset };
+  const textSizePreset = getComboboxTextSize(sizePreset);
+  const isIconStart = iconPosition === 'start';
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const searchRowRef = useRef<HTMLDivElement>(null);
+  const triggerRowRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
   const triggerId = useId();
-  const [open, setOpen] = useState(false);
+  const { handleClose, handleOpen, isOpen, panelRef } =
+    useAnchoredOpen<HTMLDivElement>();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [internalSelected, setInternalSelected] = useState<string | undefined>(
@@ -137,116 +306,54 @@ export function Combobox({
 
   const isControlled = value !== undefined;
   const selectedValue = isControlled ? value : internalSelected;
-  const textSizePreset = resolveTextSizePreset(sizePreset);
-  const valuePaddingInline = resolveValuePaddingInline(sizePreset);
-
-  const normalizedQuery = query.trim().toLowerCase();
-  const filtered = useMemo(
-    () => filterComboboxOptions(options, normalizedQuery),
-    [options, normalizedQuery]
+  const isClearVisible =
+    showClear && selectedValue !== undefined && selectedValue !== '' && !disabled;
+  const showChevron = !isClearVisible;
+  const iconNode = showChevron && (
+    <Icon
+      data-slot="icon"
+      iconFill={iconFill}
+      iconTone={iconTone}
+      interactive
+      showBorder
+      showHover={false}
+      showShadow={false}
+      sizePreset={sizePreset}
+    >
+      <ChevronDownIcon />
+    </Icon>
   );
+  const clearNode = isClearVisible && (
+    <Icon
+      aria-label={resolveClearAriaLabel(label)}
+      as="button"
+      data-slot="clear"
+      disabled={disabled}
+      iconFill={iconFill}
+      iconTone={iconTone}
+      showBorder
+      showShadow={false}
+      sizePreset={sizePreset}
+      onClick={handleClear}
+    >
+      <CloseIcon />
+    </Icon>
+  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = filterComboboxOptions(options, normalizedQuery);
 
-  const dismissCombobox = useCallback((): void => {
-    setOpen(false);
-  }, []);
+  function focusComboboxSearch(panel: HTMLElement): void {
+    const searchInput = panel.querySelector<HTMLInputElement>('input[type="search"]');
 
-  const isInsideCombobox = useCallback((target: Node): boolean => {
-    return (
-      (rootRef.current?.contains(target) ?? false) ||
-      (panelRef.current?.contains(target) ?? false)
-    );
-  }, []);
+    searchInput?.focus();
+  }
 
-  useAnchoredDismiss({
-    active: open,
-    isInside: isInsideCombobox,
-    onDismiss: dismissCombobox,
-  });
-
-  useFocusTrap({
-    active: open,
-    containerRef: panelRef,
-    returnFocusRef: triggerRef,
-  });
-
-  // Позиция и высота панели: поле поиска садится на место контрола; панель вписывается
-  // во вьюпорт (max-height по доступной высоте), гарантируя минимум строк — остаток крутит ScrollPort.
-  useLayoutEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const triggerElement = triggerRef.current;
-    const panelElement = panelRef.current;
-
-    if (!triggerElement || !panelElement) {
-      return;
-    }
-
-    function applyPanelPosition(): void {
-      if (!triggerElement || !panelElement) {
-        return;
-      }
-
-      const triggerRect = triggerElement.getBoundingClientRect();
-      const rowHeight = triggerRect.height;
-      const maxLeft = Math.max(
-        PANEL_OUTER_INSET,
-        window.innerWidth - triggerRect.width - PANEL_OUTER_INSET
-      );
-      const left = Math.min(Math.max(PANEL_OUTER_INSET, triggerRect.left), maxLeft);
-      const searchHeight = searchRowRef.current?.offsetHeight ?? rowHeight;
-      const reservedRows = Math.min(
-        MIN_VISIBLE_OPTION_ROWS,
-        Math.max(1, options.length)
-      );
-      const minPanelHeight = searchHeight + reservedRows * rowHeight;
-
-      // Поиск на линии триггера; минимум не влезает вниз — сдвигаем панель вверх.
-      let top = triggerRect.top;
-
-      if (top + minPanelHeight > window.innerHeight - PANEL_OUTER_INSET) {
-        top = window.innerHeight - PANEL_OUTER_INSET - minPanelHeight;
-      }
-
-      top = Math.max(PANEL_OUTER_INSET, top);
-      const maxBlockSize = window.innerHeight - top - PANEL_OUTER_INSET;
-
-      panelElement.style.left = `${left}px`;
-      panelElement.style.width = `${triggerRect.width}px`;
-      panelElement.style.maxHeight = `${Math.max(rowHeight, maxBlockSize)}px`;
-      panelElement.style.top = `${top}px`;
-    }
-
-    applyPanelPosition();
-    const frameId = window.requestAnimationFrame(applyPanelPosition);
-
-    window.addEventListener('resize', applyPanelPosition);
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      window.removeEventListener('resize', applyPanelPosition);
-    };
-  }, [open, filtered.length, options.length]);
-
-  // Фокус при открытии — в поле поиска.
-  useLayoutEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const frameId = window.requestAnimationFrame(() => {
-      searchInputRef.current?.focus();
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [open]);
-
-  // Активная строка всегда в зоне видимости списка.
+  /**
+   * Прокручивает активную опцию в видимую область списка при открытой панели.
+   * Срабатывает при смене `activeIndex` и открытии панели.
+   */
   useEffect(() => {
-    if (!open) {
+    if (!isOpen) {
       return;
     }
 
@@ -255,11 +362,10 @@ export function Combobox({
     );
 
     activeOption?.scrollIntoView({ block: 'nearest' });
-  }, [open, activeIndex]);
+  }, [isOpen, activeIndex, panelRef]);
 
-  /** Активная строка при открытии/фильтрации: выбранная, иначе первая доступная. */
   function initialActiveIndex(
-    list: ComboboxOption[],
+    list: readonly ComboboxOption[],
     selected: string | undefined
   ): number {
     const selectedFilteredIndex = list.findIndex(
@@ -278,7 +384,7 @@ export function Combobox({
 
     setQuery('');
     setActiveIndex(initialActiveIndex(options, selectedValue));
-    setOpen(true);
+    handleOpen();
   }
 
   function handleQueryChange(event: ChangeEvent<HTMLInputElement>): void {
@@ -299,11 +405,27 @@ export function Combobox({
     }
 
     onChange?.(option.value);
-    setOpen(false);
+    handleClose();
     setQuery('');
   }
 
-  function moveActive(step: 1 | -1): void {
+  function handleClear(event: { stopPropagation: () => void }): void {
+    event.stopPropagation();
+
+    if (disabled) {
+      return;
+    }
+
+    if (!isControlled) {
+      setInternalSelected(undefined);
+    }
+
+    onChange?.('');
+    handleClose();
+    setQuery('');
+  }
+
+  function moveActive(step: -1 | 1): void {
     setActiveIndex((current) => {
       const next = findEnabledIndex(filtered, current + step, step);
 
@@ -352,13 +474,13 @@ export function Combobox({
     }
 
     if (event.key === 'Escape') {
-      setOpen(false);
+      handleClose();
     }
   }
 
   function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>): void {
     if (event.key === 'Escape') {
-      setOpen(false);
+      handleClose();
     }
 
     if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
@@ -374,153 +496,183 @@ export function Combobox({
       : undefined;
 
   return (
-    <StyledComboboxRoot ref={rootRef} data-open={open} {...layout}>
-      {Boolean(label) && (
-        <Text
-          as="label"
-          color={theme.colors.muted}
-          htmlFor={triggerId}
-          sizePreset="medium"
-        >
-          {label}
-        </Text>
-      )}
-      <StyledComboboxTrigger
-        ref={triggerRef}
-        aria-controls={listId}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-label={ariaLabel}
-        data-open={open}
-        disabled={disabled}
-        id={triggerId}
-        shape={shape}
-        sizePreset={sizePreset}
-        type="button"
-        onClick={() => (open ? setOpen(false) : openPanel())}
-        onKeyDown={handleTriggerKeyDown}
+    <StyledComboboxRoot
+      data-disabled={disabled ? '' : undefined}
+      data-open={isOpen}
+      ref={rootRef}
+      {...layoutProps}
+      {...restProps}
+    >
+      <FieldLabel htmlFor={triggerId}>{label}</FieldLabel>
+      <StyledComboboxTriggerRow
+        data-has-clear={isClearVisible ? '' : undefined}
+        data-open={isOpen}
+        ref={triggerRowRef}
+        {...surfaceProps}
       >
-        <StyledComboboxValue sizePreset={sizePreset}>
-          {Boolean(selectedOption?.icon) && (
-            <StyledComboboxOptionIcon sizePreset={sizePreset}>
-              {selectedOption?.icon}
-            </StyledComboboxOptionIcon>
-          )}
-          <Text
-            color={selectedOption ? undefined : theme.colors.muted}
-            ellipsis
-            minInlineSize="0"
-            sizePreset={textSizePreset}
-          >
-            {selectedOption?.label ?? placeholder}
-          </Text>
-        </StyledComboboxValue>
-        <StyledComboboxChevronBox sizePreset={sizePreset}>
-          <StyledComboboxChevron sizePreset={sizePreset}>
-            <ChevronDownIcon />
-          </StyledComboboxChevron>
-        </StyledComboboxChevronBox>
-      </StyledComboboxTrigger>
+        {isIconStart && clearNode}
 
-      {reserveErrorSpace && (
-        <Text aria-hidden="true" as="p" minBlockSize="1.25rem" sizePreset="thin" />
-      )}
-
-      {open &&
-        createPortal(
-          <StyledComboboxPanel
-            ref={panelRef}
-            shape={shape}
-            sizePreset={sizePreset}
-            onKeyDown={handlePanelKeyDown}
-          >
-            <StyledComboboxSearchRow ref={searchRowRef}>
-              <Input
-                ref={searchInputRef}
-                aria-activedescendant={activeOptionId}
-                aria-controls={listId}
-                aria-expanded
-                placeholder={searchPlaceholder}
-                reserveErrorSpace={false}
-                role="combobox"
-                shape={shape}
-                sizePreset={sizePreset}
-                type="search"
-                value={query}
-                onChange={handleQueryChange}
-              />
-            </StyledComboboxSearchRow>
-
-            <ScrollPort
-              paddingInlineEnd={8}
-              scrollbarInsetBlockEnd={4}
-              scrollbarInsetBlockStart={4}
-              veil={false}
+        <StyledComboboxTrigger
+          aria-controls={listId}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-label={ariaLabel}
+          disabled={disabled}
+          id={triggerId}
+          ref={triggerRef}
+          type="button"
+          {...surfaceProps}
+          onClick={() => (isOpen ? handleClose() : openPanel())}
+          onKeyDown={handleTriggerKeyDown}
+        >
+          {iconPosition === 'start' && iconNode}
+          <StyledComboboxValue sizePreset={sizePreset}>
+            {Boolean(selectedOption?.icon) && (
+              <Icon showHover={false} sizePreset={sizePreset}>
+                {selectedOption?.icon}
+              </Icon>
+            )}
+            <Text
+              ellipsis
+              minInlineSize="0"
+              sizePreset={textSizePreset}
+              tone={selectedOption ? undefined : 'muted'}
             >
-              <StyledComboboxList
-                aria-label={label ?? placeholder}
-                id={listId}
-                role="listbox"
-              >
-                {filtered.length === 0 && (
-                  <li role="presentation">
-                    <Text
-                      color={theme.colors.muted}
-                      paddingBlock={8}
-                      paddingInline={valuePaddingInline}
-                      sizePreset={textSizePreset}
-                    >
-                      {emptyMessage}
-                    </Text>
-                  </li>
-                )}
-                {filtered.map((option, index) => {
-                  const isSelected = option.value === selectedValue;
+              {selectedOption?.label ?? placeholder}
+            </Text>
+          </StyledComboboxValue>
+          {iconPosition === 'end' && iconNode}
+        </StyledComboboxTrigger>
 
-                  return (
-                    <li key={option.value} role="presentation">
-                      <StyledComboboxOption
-                        aria-selected={isSelected}
-                        data-active={index === activeIndex}
-                        data-index={index}
-                        disabled={disabled || option.disabled}
-                        id={`${listId}-${option.value}`}
-                        role="option"
-                        shape={shape}
+        {!isIconStart && clearNode}
+      </StyledComboboxTriggerRow>
+
+      <AnchoredPortal
+        dismissZoneRefs={[rootRef, panelRef]}
+        open={isOpen}
+        panelRef={panelRef}
+        positionStrategy={{
+          anchorRef: triggerRowRef,
+          apply: (anchor, panel) =>
+            applyComboboxPanelPosition(
+              anchor,
+              panel,
+              Math.max(filtered.length, 1),
+              searchInputRef.current?.offsetHeight
+            ),
+          layoutDeps: [filtered.length],
+        }}
+        returnFocusRef={triggerRef}
+        onDismiss={handleClose}
+        onOpenFocus={focusComboboxSearch}
+      >
+        <StyledComboboxPanel
+          ref={panelRef}
+          shape={shape}
+          sizePreset={sizePreset}
+          onKeyDown={handlePanelKeyDown}
+        >
+          <StyledComboboxSearchRow data-has-clear={query.length > 0 ? '' : undefined}>
+            <Input
+              aria-activedescendant={activeOptionId}
+              aria-controls={listId}
+              aria-expanded
+              placeholder={searchPlaceholder}
+              ref={searchInputRef}
+              shape={shape}
+              showBorder={false}
+              sizePreset={sizePreset}
+              type="search"
+              value={query}
+              onChange={handleQueryChange}
+            />
+            {query.length > 0 && (
+              <Icon
+                aria-label="Clear search"
+                as="button"
+                padding={12}
+                shape="round"
+                showHover={false}
+                sizePreset="normal"
+                onClick={() => {
+                  setQuery('');
+                  searchInputRef.current?.focus();
+                }}
+              >
+                <CloseIcon />
+              </Icon>
+            )}
+          </StyledComboboxSearchRow>
+
+          <StyledComboboxList
+            aria-label={label ?? placeholder}
+            id={listId}
+            role="listbox"
+            sizePreset={sizePreset}
+          >
+            {filtered.length === 0 && (
+              <Text
+                as="li"
+                paddingBlock={8}
+                placeSelf="center"
+                role="presentation"
+                sizePreset={textSizePreset}
+                tone="muted"
+              >
+                {emptyMessage}
+              </Text>
+            )}
+            {filtered.map((option, index) => {
+              const isSelected = option.value === selectedValue;
+
+              return (
+                <li key={option.value} role="presentation">
+                  <StyledComboboxOption
+                    aria-selected={isSelected}
+                    data-active={index === activeIndex}
+                    data-index={index}
+                    disabled={disabled || option.disabled}
+                    id={`${listId}-${option.value}`}
+                    role="option"
+                    shape={shape}
+                    sizePreset={sizePreset}
+                    type="button"
+                    onClick={() => commitSelected(option)}
+                    onMouseMove={() => setActiveIndex(index)}
+                  >
+                    {Boolean(option.icon) && (
+                      <Icon showHover={false} sizePreset={sizePreset}>
+                        {option.icon}
+                      </Icon>
+                    )}
+                    <Text
+                      ellipsis
+                      minInlineSize="0"
+                      sizePreset={textSizePreset}
+                      zIndex="1"
+                    >
+                      {option.label}
+                    </Text>
+                    {isSelected && (
+                      <Icon
+                        data-slot="check"
+                        iconFill="primary"
+                        marginInlineStart="auto"
+                        position="relative"
+                        showHover={false}
                         sizePreset={sizePreset}
-                        type="button"
-                        onClick={() => commitSelected(option)}
-                        onMouseMove={() => setActiveIndex(index)}
+                        zIndex={1}
                       >
-                        {Boolean(option.icon) && (
-                          <StyledComboboxOptionIcon sizePreset={sizePreset}>
-                            {option.icon}
-                          </StyledComboboxOptionIcon>
-                        )}
-                        <Text
-                          ellipsis
-                          minInlineSize="0"
-                          sizePreset={textSizePreset}
-                          zIndex="1"
-                        >
-                          {option.label}
-                        </Text>
-                        {isSelected && (
-                          <StyledComboboxCheck>
-                            <CheckIcon />
-                          </StyledComboboxCheck>
-                        )}
-                      </StyledComboboxOption>
-                    </li>
-                  );
-                })}
-              </StyledComboboxList>
-            </ScrollPort>
-          </StyledComboboxPanel>,
-          document.body
-        )}
+                        <CheckIcon />
+                      </Icon>
+                    )}
+                  </StyledComboboxOption>
+                </li>
+              );
+            })}
+          </StyledComboboxList>
+        </StyledComboboxPanel>
+      </AnchoredPortal>
     </StyledComboboxRoot>
   );
 }
-
-export type { ComboboxStyleProps } from './combobox.styles';

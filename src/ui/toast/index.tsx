@@ -1,36 +1,89 @@
-import { type ComponentPropsWithRef } from 'react';
+/**
+ * Файл: `src/ui/toast/index.tsx`
+ * Предоставляет компонент Toast для отображения уведомлений.
+ *
+ * Поддерживает:
+ *  - layout-пропсы: отступы, позиционирование, размеры
+ *  - размерный ряд через проп `sizePreset`
+ *  - семантический тон через проп `tone`
+ *  - текст сообщения через `children`
+ *  - тон текста сообщения через проп `textTone`
+ *  - размер текста сообщения через проп `textSize`
+ *  - курсив текста сообщения через проп `textItalic`
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент Toast
+ * 2. Типизировать пропсы через `ToastProps`
+ * 3. Выставлять `role` и `aria-live` по тону: для `danger` — `alert` и `assertive`
+ * 4. Реэкспортировать мост размера текста `getToastTextSize`
+ *
+ * Потребители:
+ *  - `src/context/toast/index.tsx` — рендерит Toast в стеке уведомлений
+ *  - `src/pages/showcase` — демонстрирует состояния в витрине
+ */
 
-import { textSizePreset } from '@ui/presets';
-import { Text } from '@ui/text';
+import { type ComponentPropsWithRef, type ReactNode } from 'react';
 
-import { StyledToast, type ToastStyleProps } from './toast.styles';
+import { Text, type TextSizePreset, type TextTone } from '@ui/text';
 
-export type ToastProps = ToastStyleProps & {
-  message: string;
+import { StyledToast, getToastTextSize, type ToastStyleProps } from './toast.styles';
+
+/**
+ * ToastProps — представляет пропсы компонента Toast.
+ *
+ * @property children — текст сообщения
+ * @property textItalic — включает курсив текста сообщения
+ * @property textSize — размер текста сообщения
+ * @property textTone — тон текста сообщения
+ */
+type ToastProps = ToastStyleProps & {
+  children: ReactNode;
+  textItalic?: boolean;
+  textSize?: TextSizePreset;
+  textTone?: TextTone;
 } & Omit<
     ComponentPropsWithRef<'div'>,
-    keyof ToastStyleProps | 'children' | 'className' | 'style'
+    'children' | 'className' | 'style' | keyof ToastStyleProps
   >;
 
-export function Toast({ message, sizePreset, tone, ...rest }: ToastProps) {
-  // layout + прочие пропы идут на один и тот же корень — StyledToast сам потребляет
-  // layout (getLayoutStyles) и фильтрует их из DOM (shouldForwardProp); сплит не нужен.
+/**
+ * Toast — отображает уведомление.
+ *
+ * @example
+ * <Toast>Успешно сохранено</Toast>
+ * <Toast tone="danger">Ошибка</Toast>
+ */
+function Toast({
+  children,
+  sizePreset,
+  textItalic,
+  textSize,
+  textTone,
+  tone,
+  ...rest
+}: ToastProps) {
   const isDanger = tone === 'danger';
   const role = isDanger ? 'alert' : 'status';
   const ariaLive = isDanger ? 'assertive' : 'polite';
 
   return (
     <StyledToast
-      role={role}
       aria-live={ariaLive}
+      role={role}
       sizePreset={sizePreset}
       tone={tone}
       {...rest}
     >
-      {/* Размер текста — по канону ряда (textSizePreset), как у Button/Input. */}
-      <Text sizePreset={textSizePreset(sizePreset)}>{message}</Text>
+      <Text
+        italic={textItalic}
+        sizePreset={textSize ?? getToastTextSize(sizePreset)}
+        tone={textTone}
+      >
+        {children}
+      </Text>
     </StyledToast>
   );
 }
 
-export type { ToastStyleProps } from './toast.styles';
+/* eslint-disable react-refresh/only-export-components -- реэкспорт моста размера текста */
+export { Toast, getToastTextSize };

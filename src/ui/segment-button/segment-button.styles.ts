@@ -1,203 +1,142 @@
+/**
+ * Файл: `src/ui/segment-button/segment-button.styles.ts`
+ * Определяет внешний вид компонента SegmentButton.
+ *
+ * Основные задачи:
+ * 1. Типизировать пропсы через `SegmentButtonStyleProps`
+ * 2. Предоставить функцию `getSegmentButtonTextSize`
+ * 3. Предоставить styled-узлы `StyledSegmentButtonRoot` и `StyledSegmentButton`
+ * 4. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
+ *
+ * Потребители:
+ *  - `src/ui/segment-button/index.tsx` — собирает компонент SegmentButton и реэкспортирует
+ *    публичное API
+ */
+
 import styled from 'styled-components';
 
+import { getBorderStyles } from '@ui/border';
 import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
+import { getOutlineStyles } from '@ui/outline';
 import {
   DEFAULT_SHAPE_PRESET,
   DEFAULT_SIZE_PRESET,
-  blockSizeRem,
-  controlPaddingInline,
-  radiusPreset,
+  getMinBlockSize,
+  getTextSize,
+  resolveBlockRadius,
   type ShapePreset,
   type SizePreset,
 } from '@ui/presets';
-import { spacingRem, type SpacingPx } from '@ui/spacing';
+import { getSpacingValue } from '@ui/spacing';
+import { type TextSizePreset } from '@ui/text';
 import { getTheme, type AppTheme } from '@ui/theme';
-import {
-  extendedToneOptions,
-  resolveExtendedToneColor,
-  type ExtendedTone,
-  type ToneExtraColors,
-} from '@ui/tones';
 
-/** Локальный слой textColor: канон tone + muted (нейтральный вторичный текст). */
-export type SegmentTextColor = ExtendedTone<'muted'>;
-
-/** Локальные значения textColor вне канона → ключи темы. */
-const SEGMENT_TEXT_EXTRA_COLORS = {
-  muted: 'muted',
-} as const satisfies ToneExtraColors<'muted'>;
-
-export const SEGMENT_TEXT_COLOR_OPTIONS = extendedToneOptions(['muted']);
+export { splitLayoutProps } from '@ui/layout';
 
 /**
- * Цвет текста сегмента: явный `textColor` резолвится через канон тона (нейтральный
- * `default` → наследование), без override активный сегмент берёт `primary`.
+ * getSegmentButtonTextSize — возвращает размер текста сегмента по `sizePreset`.
+ * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
+ *
+ * @param sizePreset размер сегментной кнопки
+ * @returns метка размера текста из `TextSizePreset` для текста сегмента
  */
-export function resolveSegmentTextColor(
-  theme: AppTheme,
-  textColor: SegmentTextColor | undefined,
-  active: boolean | undefined
-): string | undefined {
-  if (textColor !== undefined) {
-    return resolveExtendedToneColor(
-      theme,
-      textColor,
-      SEGMENT_TEXT_EXTRA_COLORS,
-      undefined
-    );
-  }
-
-  return active ? theme.colors.primary : undefined;
+export function getSegmentButtonTextSize(sizePreset?: SizePreset): TextSizePreset {
+  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
 }
 
-/** Зазор между иконкой и текстом сегмента и вертикальный отступ разделителя — оси, уникальные для сегментной кнопки. */
-const segmentButtonLayoutPresets = {
-  small: { dividerMarginBlock: 8, gap: 4 },
-  medium: { dividerMarginBlock: 8, gap: 8 },
-  large: { dividerMarginBlock: 12, gap: 8 },
-} as const satisfies Record<
-  SizePreset,
-  { dividerMarginBlock: SpacingPx; gap: SpacingPx }
->;
-
+/**
+ * SegmentButtonStyleProps — представляет пропсы стилизации SegmentButton и layout-пропсы.
+ *
+ * @property shape — форма оболочки ряда
+ * @property sizePreset — размер компонента
+ */
 export type SegmentButtonStyleProps = LayoutProps & {
-  embedded?: boolean;
   shape?: ShapePreset;
   sizePreset?: SizePreset;
 };
 
-const SEGMENT_BUTTON_PROP_NAMES = new Set<string>([
-  ...LAYOUT_PROP_NAMES,
-  'embedded',
-  'shape',
-  'sizePreset',
-]);
-
-type SegmentViewProps = {
-  embedded?: boolean;
-  shape?: ShapePreset;
-  sizePreset?: SizePreset;
-};
-
-export function getSegmentButtonStyles(
-  props: SegmentViewProps & { theme: AppTheme }
-): string {
-  const theme = getTheme(props);
-  const {
-    embedded = false,
-    shape = DEFAULT_SHAPE_PRESET,
-    sizePreset = DEFAULT_SIZE_PRESET,
-  } = props;
-
-  if (embedded) {
-    return [
-      `min-block-size: ${blockSizeRem(sizePreset)};`,
-      'background-color: transparent;',
-    ].join('\n');
-  }
-
-  return [
-    `min-block-size: ${blockSizeRem(sizePreset)};`,
-    `background-color: ${theme.colors.surface};`,
-    `border: 1px solid ${theme.colors.border};`,
-    `box-shadow: ${theme.shadow.surface};`,
-    `border-radius: ${radiusPreset(shape, sizePreset)};`,
-  ].join('\n');
-}
-
-function getSegmentPartStyles(props: SegmentViewProps): string {
-  const { shape = DEFAULT_SHAPE_PRESET, sizePreset = DEFAULT_SIZE_PRESET } = props;
-
-  const rules = [
-    `gap: ${spacingRem(segmentButtonLayoutPresets[sizePreset].gap)};`,
-    `block-size: ${blockSizeRem(sizePreset)};`,
-    `padding-inline: ${spacingRem(controlPaddingInline[sizePreset])};`,
-  ];
-
-  if (shape === 'default') {
-    const radius = spacingRem(8);
-
-    rules.push(
-      `&:first-child {\nborder-start-start-radius: ${radius};\nborder-end-start-radius: ${radius};\n}`
-    );
-    rules.push(
-      `&:last-child {\nborder-start-end-radius: ${radius};\nborder-end-end-radius: ${radius};\n}`
-    );
-  }
-
-  return rules.join('\n');
-}
-
-function getSegmentDividerStyles(props: { sizePreset?: SizePreset }): string {
-  const { sizePreset = DEFAULT_SIZE_PRESET } = props;
-
-  return `margin-block: ${spacingRem(segmentButtonLayoutPresets[sizePreset].dividerMarginBlock)};`;
-}
-
-export const StyledSegmentButton = styled.div.withConfig({
-  shouldForwardProp: (prop) => !SEGMENT_BUTTON_PROP_NAMES.has(prop),
-})<SegmentButtonStyleProps>`
-  display: inline-grid;
-  grid-template-columns: 1fr;
-  flex-shrink: 0;
-  align-items: stretch;
-  overflow: hidden;
-
-  &[data-segments='2'] {
-    inline-size: 100%;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  }
-
-  &[data-segments='3'] {
-    inline-size: 100%;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-  }
-
-  ${(props) => getSegmentButtonStyles(props)}
+/**
+ * StyledSegmentButtonRoot — задаёт корневой узел компонента SegmentButton.
+ * Базируется на `<div>` и поддерживает layout-пропсы.
+ *
+ * Встроенные стили:
+ *  - `display: grid` — вертикальный поток подписи и оболочки
+ *  - `gap` — отступ между подписью и оболочкой
+ *  - `inline-size: 100%` — занимает ширину родителя
+ *  - `min-inline-size: 0` — предотвращает переполнение
+ *
+ * Генерация стилей:
+ *  - `getLayoutStyles` — отступы, позиционирование, размеры
+ */
+export const StyledSegmentButtonRoot = styled.div.withConfig({
+  shouldForwardProp: (prop) => !LAYOUT_PROP_NAMES.has(prop),
+})<LayoutProps>`
+  display: grid;
+  gap: ${getSpacingValue(8)};
+  inline-size: 100%;
+  min-inline-size: 0;
   ${(props) => getLayoutStyles(props)}
 `;
 
-export const StyledSegmentButtonPart = styled.button.withConfig({
-  shouldForwardProp: (prop) => prop !== 'shape' && prop !== 'sizePreset',
-})<SegmentViewProps>`
-  /* flex (не grid): центрированный ряд [иконка?] + Text, где текст сжимается с ellipsis;
-     grid с auto-колонками тянет трек к max-content и ломает усечение. */
-  display: flex;
+/**
+ * SEGMENT_BUTTON_PROP_NAMES — хранит имена пропсов стилизации оболочки ряда.
+ */
+const SEGMENT_BUTTON_PROP_NAMES = new Set<string>(['shape', 'sizePreset']);
+
+/**
+ * getSegmentButtonStyles — возвращает CSS-правила для узла `StyledSegmentButton`:
+ * высоту, заливку, рамку с тенью через `getBorderStyles`, радиус по `shape`
+ * и фокус-контур ряда на `:focus-within`.
+ *
+ * Как работает:
+ * 1. Берёт тему и подставляет дефолты `shape` и `sizePreset`
+ * 2. Собирает `min-block-size` через `getMinBlockSize`, заливку `surface`,
+ *    рамку с тенью через `getBorderStyles` и `border-radius` через
+ *    `resolveBlockRadius` по форме и высоте
+ * 3. На `:focus-within` рисует фокус-контур через `getOutlineStyles` — общая
+ *    обводка ряда, пока фокус на сегменте. Сам сегмент контур не рисует
+ *
+ * @param props пропсы стилизации оболочки и тема
+ * @returns CSS-правила, каждое с новой строки
+ */
+function getSegmentButtonStyles(
+  props: Pick<SegmentButtonStyleProps, 'shape' | 'sizePreset'> & { theme: AppTheme }
+): string {
+  const theme = getTheme(props);
+  const { shape = DEFAULT_SHAPE_PRESET, sizePreset = DEFAULT_SIZE_PRESET } = props;
+  const minBlockSize = getMinBlockSize(sizePreset);
+
+  return `
+    min-block-size: ${minBlockSize};
+    background-color: ${theme.colors.surface};
+    ${getBorderStyles(theme)}
+    border-radius: ${resolveBlockRadius(shape, minBlockSize)};
+    &:focus-within {
+      ${getOutlineStyles(theme.colors.focusOutline)}
+    }
+  `;
+}
+
+/**
+ * StyledSegmentButton — задаёт оболочку ряда сегментов компонента SegmentButton.
+ * Базируется на `<div>` и принимает пропсы `shape` и `sizePreset`.
+ *
+ * Встроенные стили:
+ *  - `display: grid` — оболочка над рядом сегментов
+ *  - `inline-size: 100%` — занимает ширину родителя
+ *  - `min-inline-size: 0` — предотвращает переполнение
+ *  - `overflow: hidden` — обрезает сегменты по скруглению оболочки
+ *
+ * Генерация стилей:
+ *  - `getSegmentButtonStyles` — высота, заливка, рамка с тенью через `getBorderStyles`,
+ *    радиус и фокус-контур `:focus-within`
+ */
+export const StyledSegmentButton = styled.div.withConfig({
+  shouldForwardProp: (prop) => !SEGMENT_BUTTON_PROP_NAMES.has(prop),
+})<Pick<SegmentButtonStyleProps, 'shape' | 'sizePreset'>>`
+  display: grid;
+  inline-size: 100%;
   min-inline-size: 0;
-  align-items: center;
-  justify-content: center;
-
-  & svg {
-    inline-size: 1.25rem;
-    block-size: 1.25rem;
-  }
-
-  &:focus {
-    outline: none;
-  }
-
-  &:focus-visible {
-    position: relative;
-    z-index: 1;
-    outline: 2px solid ${(props) => getTheme(props).colors.focusRing};
-    outline-offset: -2px;
-  }
-
-  &:hover:not(:disabled) {
-    background-color: ${(props) => {
-      const theme = getTheme(props);
-
-      return `color-mix(in srgb, ${theme.colors.border} 28%, ${theme.colors.surface})`;
-    }};
-  }
-
-  ${(props) => getSegmentPartStyles(props)}
-`;
-
-export const StyledSegmentButtonDivider = styled.span.withConfig({
-  shouldForwardProp: (prop) => prop !== 'sizePreset',
-})<{ sizePreset?: SizePreset }>`
-  inline-size: 1px;
-  background-color: ${(props) => getTheme(props).colors.border};
-  ${(props) => getSegmentDividerStyles(props)}
+  overflow: hidden;
+  ${(props) => getSegmentButtonStyles(props)}
 `;

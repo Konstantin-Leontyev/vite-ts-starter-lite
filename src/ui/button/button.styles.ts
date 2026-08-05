@@ -1,305 +1,328 @@
+/**
+ * Файл: `src/ui/button/button.styles.ts`
+ * Определяет внешний вид компонента Button.
+ *
+ * Основные задачи:
+ * 1. Типизировать пропсы через `ButtonStyleProps`
+ * 2. Предоставить функцию `getButtonTextSize`
+ * 3. Предоставить styled-узлы `StyledButtonRoot` и `StyledButton`
+ * 4. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
+ *
+ * Потребители:
+ *  - `src/ui/button/index.tsx` — собирает компонент Button и реэкспортирует публичное API
+ */
+
 import styled from 'styled-components';
 
+import { getBorderStyles } from '@ui/border';
+import {
+  ICON_SETTING_PROP_NAMES,
+  getIconPositionStyles,
+  resolveIconStateBackground,
+} from '@ui/icon';
 import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
 import {
   DEFAULT_SHAPE_PRESET,
   DEFAULT_SIZE_PRESET,
-  controlBlockSize,
-  controlIconSize,
-  controlPaddingInline,
-  radiusPreset,
+  getMinBlockSize,
+  getPaddingInline,
+  getTextSize,
+  resolveBlockRadius,
   type ShapePreset,
   type SizePreset,
 } from '@ui/presets';
-import { spacingRem } from '@ui/spacing';
+import { getSpacingValue } from '@ui/spacing';
+import { type TextSizePreset } from '@ui/text';
 import { getTheme, type AppTheme } from '@ui/theme';
-import { DEFAULT_TONE_PRESET, toneThemeColorKey, type TonePreset } from '@ui/tones';
+import {
+  BORDER_SURFACE_MIX_PERCENT,
+  DEFAULT_TONE,
+  VARIANT_SURFACE_MIX_PERCENT,
+  getToneColorKey,
+  resolveColorMix,
+  resolveVeilBackground,
+  type TonePreset,
+} from '@ui/tones';
 
-export type ButtonIconPosition = 'end' | 'start';
+export { splitLayoutProps } from '@ui/layout';
 
-const DEFAULT_ICON_POSITION: ButtonIconPosition = 'end';
+/**
+ * getButtonTextSize — возвращает размер лейбла по `sizePreset`.
+ * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
+ *
+ * @param sizePreset размер кнопки
+ * @returns метка размера текста из `TextSizePreset` для лейбла кнопки
+ */
+export function getButtonTextSize(sizePreset?: SizePreset): TextSizePreset {
+  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
+}
 
+/**
+ * ButtonSurface — представляет заливки и цвет текста кнопки.
+ *
+ * @property activeBackground — заливка в состоянии `active`
+ * @property backgroundColor — заливка в покое
+ * @property color — цвет текста
+ * @property hoverBackground — заливка при наведении
+ */
+type ButtonSurface = {
+  activeBackground: string;
+  backgroundColor: string;
+  color: string;
+  hoverBackground: string;
+};
+
+/**
+ * resolveButtonSurface — возвращает заливки и цвет текста кнопки по `tone`.
+ * Для нейтрального тона основа `surface`, наведение — вуаль поверх неё,
+ * `active` — смесь `border` с `surface` через `BORDER_SURFACE_MIX_PERCENT`.
+ * Для цветного — цвет из темы со сдвигом состояний к `shade`.
+ *
+ * @param theme текущая тема
+ * @param tone семантический тон кнопки
+ * @returns заливки и цвет текста для корня и секции лейбла
+ */
+function resolveButtonSurface(theme: AppTheme, tone: TonePreset): ButtonSurface {
+  const colorKey = getToneColorKey(tone);
+
+  if (!colorKey) {
+    return {
+      activeBackground: resolveColorMix(
+        theme.colors.border,
+        theme.colors.surface,
+        BORDER_SURFACE_MIX_PERCENT
+      ),
+      backgroundColor: theme.colors.surface,
+      color: theme.colors.default,
+      hoverBackground: resolveVeilBackground(theme, theme.colors.surface),
+    };
+  }
+
+  const color = theme.colors[colorKey];
+
+  return {
+    activeBackground: resolveColorMix(color, theme.colors.shade),
+    backgroundColor: color,
+    color: theme.colors.inverse,
+    hoverBackground: resolveColorMix(color, theme.colors.shade),
+  };
+}
+
+/**
+ * ButtonStyleProps — представляет пропсы стилизации Button и layout-пропсы.
+ *
+ * @property active — включает зафиксированное нажатое состояние
+ * @property iconTone — тон секции иконки
+ * @property shape — форма кнопки
+ * @property sizePreset — размер компонента
+ * @property tone — семантический тон
+ */
 export type ButtonStyleProps = LayoutProps & {
   active?: boolean;
-  iconFill?: TonePreset;
-  iconPosition?: ButtonIconPosition;
   iconTone?: TonePreset;
   shape?: ShapePreset;
   sizePreset?: SizePreset;
   tone?: TonePreset;
 };
 
-/** hasIcon — внутренняя ось от index: split-раскладка vs solid. */
-type ButtonRootStyleProps = ButtonStyleProps & { hasIcon?: boolean };
+/**
+ * StyledButtonRoot — задаёт корневой узел компонента Button.
+ * Базируется на `<div>` и поддерживает layout-пропсы.
+ *
+ * Встроенные стили:
+ *  - `display: grid` — вертикальный поток подписи и кнопки
+ *  - `gap` — отступ между подписью и кнопкой
+ *  - `inline-size: 100%` — занимает ширину родителя
+ *  - `min-inline-size: 0` — предотвращает переполнение
+ *
+ * Генерация стилей:
+ *  - `getLayoutStyles` — отступы, позиционирование, размеры
+ */
+export const StyledButtonRoot = styled.div.withConfig({
+  shouldForwardProp: (prop) => !LAYOUT_PROP_NAMES.has(prop),
+})<LayoutProps>`
+  display: grid;
+  gap: ${getSpacingValue(8)};
+  inline-size: 100%;
+  min-inline-size: 0;
+  ${(props) => getLayoutStyles(props)}
+`;
 
+/**
+ * ButtonStyledProps — представляет пропсы стилизации узла `StyledButton`.
+ *
+ * @property hasIcon — включает split-раскладку с секцией иконки. Выключенный —
+ *   узел рисуется solid-заливкой
+ */
+type ButtonStyledProps = ButtonStyleProps & { hasIcon: boolean };
+
+/**
+ * BUTTON_PROP_NAMES — объединяет имена пропсов стилизации кнопки `StyledButton`.
+ */
 const BUTTON_PROP_NAMES = new Set<string>([
-  ...LAYOUT_PROP_NAMES,
+  ...ICON_SETTING_PROP_NAMES,
   'active',
   'hasIcon',
-  'iconFill',
-  'iconPosition',
-  'iconTone',
   'shape',
   'sizePreset',
   'tone',
 ]);
 
 /**
- * Тон текста (textColor) → цвет темы. Без override (наследует цвет родителя), когда тон
- * `default` или совпадает с `tone` кнопки — иначе текст слился бы с заливкой.
+ * DEFAULT_BUTTON_ACTIVE — задаёт зафиксированное нажатое состояние по умолчанию.
+ * Используется, когда вызывающий код не передал проп `active`.
  */
-export function buttonTextColor(
-  theme: AppTheme,
-  textColor: TonePreset | undefined,
-  tone: TonePreset | undefined
-): string | undefined {
-  if (!textColor || textColor === DEFAULT_TONE_PRESET || textColor === tone) {
-    return undefined;
-  }
-
-  const key = toneThemeColorKey(textColor);
-
-  return key ? theme.colors[key] : undefined;
-}
-
-/** Затемнение цвета: keepPct% исходного + остаток чёрный (hover/active цветных тонов). */
-function darken(color: string, keepPct: number): string {
-  return `color-mix(in srgb, ${color} ${keepPct}%, #000)`;
-}
-
-/** Подмешивание цвета поверх surface (нейтральные hover/active, мягкая подложка иконки). */
-function mixOverSurface(theme: AppTheme, color: string, pct: number): string {
-  return `color-mix(in srgb, ${color} ${pct}%, ${theme.colors.surface})`;
-}
-
-type ToneSurface = { active: string; fg: string; fill: string; hover: string };
-
-/** Заливка/текст/hover/active для тона — нейтральный из surface, цветной из темы. */
-function resolveTone(theme: AppTheme, tone: TonePreset): ToneSurface {
-  const background = toneThemeColorKey(tone);
-
-  // Нейтральный тон: фон surface, текст default, hover/active подмешивают border.
-  if (!background) {
-    return {
-      fg: theme.colors.default,
-      fill: theme.colors.surface,
-      hover: mixOverSurface(theme, theme.colors.border, 28),
-      active: mixOverSurface(theme, theme.colors.border, 40),
-    };
-  }
-
-  // Цветной тон: заливка из темы, текст inverse, hover/active затемняют заливку.
-  const color = theme.colors[background];
-
-  return {
-    fg: theme.colors.inverse,
-    fill: color,
-    hover: darken(color, 88),
-    active: darken(color, 80),
-  };
-}
-
-type IconSurface = {
-  bg: string;
-  bgActive: string;
-  bgHover: string;
-  fg: string;
-  fgHover: string;
-};
+const DEFAULT_BUTTON_ACTIVE = false;
 
 /**
- * Секция иконки: фон по iconTone, цвет глифа по iconFill (override),
- * active для нейтральной иконки — мягкая подложка под цвет варианта (tone).
+ * getButtonSplitStyles — возвращает CSS-правила для узла `StyledButton`:
+ * раскладку позиции иконки, отступ лейбла и канал состояний секции иконки.
+ * Статику секции красит внутренний Icon своими пропсами, фон лейбла —
+ * собственная заливка узла.
+ *
+ * Как работает:
+ * 1. Кладёт раскладку позиции через `getIconPositionStyles`: колонки под
+ *    позицию `[data-slot='icon']` и `block-size: 100%` на слоте
+ * 2. Переносит `padding-inline` с узла на слот лейбла — секция иконки прижата к краю
+ * 3. При цветном `iconTone` на наведении и `:focus-visible` выставляет
+ *    `--icon-state-background` сдвигом тона к `shade`. Нейтральная секция
+ *    подсвечивается заливкой узла
+ * 4. При `active` фиксирует значение канала: для цветной секции — сдвигом
+ *    тона к `shade`, для нейтральной — смесь `primary` с `surface` через
+ *    `VARIANT_SURFACE_MIX_PERCENT`
+ *
+ * @param props пропсы стилизации узла и текущая тема
+ * @returns CSS-правила, каждое с новой строки
  */
-function resolveIcon(
-  theme: AppTheme,
-  tone: TonePreset,
-  iconTone: TonePreset,
-  iconFill: TonePreset | undefined
-): IconSurface {
-  const background = toneThemeColorKey(iconTone);
-
-  let bg: string;
-  let fg: string;
-  let bgHover: string;
-  let bgActive: string;
-
-  if (!background) {
-    bg = theme.colors.surface;
-    fg = theme.colors.default;
-    bgHover = mixOverSurface(theme, theme.colors.border, 28);
-
-    const variantKey = toneThemeColorKey(tone);
-    const variantColor = variantKey ? theme.colors[variantKey] : theme.colors.primary;
-
-    bgActive = mixOverSurface(theme, variantColor, 12);
-  } else {
-    const color = theme.colors[background];
-
-    bg = color;
-    fg = theme.colors.inverse;
-    bgHover = darken(color, 88);
-    bgActive = darken(color, 80);
-  }
-
-  // iconFill красит только глиф и применяется, если задан, не default и отличен от iconTone.
-  const fillKey =
-    iconFill && iconFill !== DEFAULT_TONE_PRESET && iconFill !== iconTone
-      ? toneThemeColorKey(iconFill)
-      : undefined;
-
-  if (fillKey) {
-    fg = theme.colors[fillKey];
-
-    return {
-      bg,
-      bgActive,
-      bgHover,
-      fg,
-      fgHover: darken(theme.colors[fillKey], 88),
-    };
-  }
-
-  return { bg, bgActive, bgHover, fg, fgHover: fg };
-}
-
-export const StyledButtonText = styled.span`
-  /* flex (не grid): центрированный лейбл, сжимаемый с ellipsis; grid с auto-треком
-     тянет трек к max-content и ломает усечение. */
-  display: flex;
-  flex: 1 1 auto;
-  min-inline-size: 0;
-  align-items: center;
-  justify-content: center;
-`;
-
-export const StyledButtonIcon = styled.span`
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  align-self: stretch;
-`;
-
-/** Split-раскладка: заливка лейбла/иконки, шов, радиусы и состояния по позиции. */
-function getButtonSplitStyles(
-  props: ButtonRootStyleProps & { theme: AppTheme }
-): string {
+function getButtonSplitStyles(props: ButtonStyledProps & { theme: AppTheme }): string {
   const theme = getTheme(props);
   const {
-    active = false,
-    iconFill,
-    iconPosition = DEFAULT_ICON_POSITION,
-    iconTone = DEFAULT_TONE_PRESET,
-    shape = DEFAULT_SHAPE_PRESET,
+    active = DEFAULT_BUTTON_ACTIVE,
+    iconTone = DEFAULT_TONE,
     sizePreset = DEFAULT_SIZE_PRESET,
-    tone = DEFAULT_TONE_PRESET,
   } = props;
-  const radius = radiusPreset(shape, sizePreset);
-  const surface = resolveTone(theme, tone);
-  const icon = resolveIcon(theme, tone, iconTone, iconFill);
+  const iconColorKey = getToneColorKey(iconTone);
+  const hoverStateBackground = resolveIconStateBackground(theme, iconTone, 'none');
 
-  const isStart = iconPosition === 'start';
-  const labelRadius = isStart
-    ? `border-start-end-radius: ${radius};\nborder-end-end-radius: ${radius};`
-    : `border-start-start-radius: ${radius};\nborder-end-start-radius: ${radius};`;
-  const iconRadius = isStart
-    ? `border-start-start-radius: ${radius};\nborder-end-start-radius: ${radius};`
-    : `border-start-end-radius: ${radius};\nborder-end-end-radius: ${radius};`;
-
-  // Шов виден только когда и кнопка, и иконка нейтральны — иначе контраст цвета достаточен.
-  const seam =
-    tone === DEFAULT_TONE_PRESET && iconTone === DEFAULT_TONE_PRESET
-      ? theme.colors.border
-      : 'transparent';
-  const seamShadow = isStart
-    ? `box-shadow: inset -1px 0 0 ${seam};`
-    : `box-shadow: inset 1px 0 0 ${seam};`;
-
-  const glyph = spacingRem(controlIconSize[sizePreset]);
-  const square = spacingRem(controlBlockSize[sizePreset]);
-
-  return [
-    `${StyledButtonText} {`,
-    `padding-inline: ${spacingRem(controlPaddingInline[sizePreset])};`,
-    `background-color: ${surface.fill};`,
-    labelRadius,
+  const styles = [
+    getIconPositionStyles(),
+    `[data-slot='label'] {`,
+    `padding-inline: ${getPaddingInline(sizePreset)};`,
     `}`,
-    `${StyledButtonIcon} {`,
-    `inline-size: ${square};`,
-    `min-inline-size: ${square};`,
-    `color: ${icon.fg};`,
-    `background-color: ${icon.bg};`,
-    iconRadius,
-    seamShadow,
-    `& svg {`,
-    `inline-size: ${glyph};`,
-    `block-size: ${glyph};`,
-    `}`,
-    `}`,
-    `&:not(:disabled):hover ${StyledButtonText} {`,
-    `background-color: ${surface.hover};`,
-    `}`,
-    `&:not(:disabled):hover ${StyledButtonIcon} {`,
-    `color: ${icon.fgHover};`,
-    `background-color: ${icon.bgHover};`,
-    `}`,
-    active
-      ? [
-          `&:not(:disabled) ${StyledButtonText} {`,
-          `background-color: ${surface.active};`,
-          `}`,
-          `&:not(:disabled) ${StyledButtonIcon} {`,
-          `background-color: ${icon.bgActive};`,
-          `}`,
-        ].join('\n')
-      : '',
-  ].join('\n');
-}
-
-export function getButtonStyles(
-  props: ButtonRootStyleProps & { theme: AppTheme }
-): string {
-  const theme = getTheme(props);
-  const {
-    hasIcon = false,
-    shape = DEFAULT_SHAPE_PRESET,
-    sizePreset = DEFAULT_SIZE_PRESET,
-    tone = DEFAULT_TONE_PRESET,
-  } = props;
-  const surface = resolveTone(theme, tone);
-
-  const base = [
-    `min-block-size: ${spacingRem(controlBlockSize[sizePreset])};`,
-    `border: 1px solid ${theme.colors.border};`,
-    `border-radius: ${radiusPreset(shape, sizePreset)};`,
-    `box-shadow: ${theme.shadow.surface};`,
-    `color: ${surface.fg};`,
   ];
 
-  // Split (иконка + лейбл) — заливка на секциях; solid — заливка и hover на корне.
-  if (hasIcon) {
-    base.push(getButtonSplitStyles(props));
-
-    return base.join('\n');
+  if (hoverStateBackground) {
+    styles.push(
+      `&:not(:disabled):hover {`,
+      `--icon-state-background: ${hoverStateBackground};`,
+      `}`,
+      `&:focus-visible {`,
+      `--icon-state-background: ${hoverStateBackground};`,
+      `}`
+    );
   }
 
-  base.push(`padding-inline: ${spacingRem(controlPaddingInline[sizePreset])};`);
-  base.push(`background-color: ${surface.fill};`);
-  base.push(`&:not(:disabled):hover { background-color: ${surface.hover}; }`);
+  if (active) {
+    styles.push(
+      `&:not(:disabled) {`,
+      `--icon-state-background: ${
+        iconColorKey
+          ? resolveColorMix(theme.colors[iconColorKey], theme.colors.shade)
+          : resolveColorMix(
+              theme.colors.primary,
+              theme.colors.surface,
+              VARIANT_SURFACE_MIX_PERCENT
+            )
+      };`,
+      `}`
+    );
+  }
 
-  return base.join('\n');
+  return styles.join('\n');
 }
 
+/**
+ * getButtonStyles — возвращает CSS-правила для узла `StyledButton`: размер,
+ * рамку с тенью через `getBorderStyles`, радиус, цвет текста, заливку
+ * с состояниями и раскладку при секции иконки.
+ *
+ * Как работает:
+ * 1. Собирает общие правила узла: размер, рамку с тенью через `getBorderStyles`,
+ *    радиус, цвет и заливка — фон лейбла всегда фон узла, наведение и
+ *    `active` меняют его целиком
+ * 2. При `hasIcon` делегирует раскладку позиции, отступ лейбла и канал
+ *    секции иконки в `getButtonSplitStyles`
+ * 3. Без иконки кладёт `padding-inline` на узел
+ *
+ * @param props пропсы стилизации узла и текущая тема
+ * @returns CSS-правила, каждое с новой строки
+ */
+function getButtonStyles(props: ButtonStyledProps & { theme: AppTheme }): string {
+  const theme = getTheme(props);
+  const {
+    active = DEFAULT_BUTTON_ACTIVE,
+    hasIcon,
+    shape = DEFAULT_SHAPE_PRESET,
+    sizePreset = DEFAULT_SIZE_PRESET,
+    tone = DEFAULT_TONE,
+  } = props;
+  const surface = resolveButtonSurface(theme, tone);
+  const minBlockSize = getMinBlockSize(sizePreset);
+
+  const styles = [
+    `min-block-size: ${minBlockSize};`,
+    `border-radius: ${resolveBlockRadius(shape, minBlockSize)};`,
+    `color: ${surface.color};`,
+    `background-color: ${surface.backgroundColor};`,
+    getBorderStyles(theme),
+    `&:not(:disabled):hover { background: ${surface.hoverBackground}; }`,
+  ];
+
+  if (active) {
+    styles.push(`&:not(:disabled) { background: ${surface.activeBackground}; }`);
+  }
+
+  if (hasIcon) {
+    styles.push(getButtonSplitStyles(props));
+  } else {
+    styles.push(`padding-inline: ${getPaddingInline(sizePreset)};`);
+  }
+
+  return styles.join('\n');
+}
+
+/**
+ * StyledButton — задаёт узел кнопки компонента Button.
+ * Базируется на `<button>` и поддерживает все пропсы из `ButtonStyledProps`.
+ *
+ * Встроенные стили:
+ *  - `display: grid` — сетка ряда. При секции иконки колонки задаёт
+ *    `getIconPositionStyles` в `getButtonSplitStyles`
+ *  - `grid-template-columns: minmax(0, 1fr)` — колонка лейбла без иконки ужимается
+ *    ниже min-content nowrap-текста, иначе ellipsis не срабатывает и лейбл режет
+ *    `overflow: hidden` корня. При секции иконки шаблон переопределяет
+ *    `getIconPositionStyles`
+ *  - `align-items: center` — центрирует лейбл и секцию иконки по поперечной оси
+ *  - `inline-size: 100%` — кнопка занимает ширину контейнера
+ *  - `min-inline-size: 0` — предотвращает переполнение во flex/grid-контейнере
+ *  - `overflow: hidden` — обрезает квадратное окно Icon по радиусу корня:
+ *    скругление секций — обрезка корнем, не радиусы на детях
+ *
+ * Генерация стилей:
+ *  - `getButtonStyles` — размер, рамка с тенью через `getBorderStyles`,
+ *    радиус, цвет, заливка. При иконке — раскладка и канал секции
+ *
+ * Слоты: отступ лейбла и канал состояний секции иконки задаёт узел
+ * по `[data-slot]`. Статику секции красит внутренний Icon.
+ */
 export const StyledButton = styled.button.withConfig({
   shouldForwardProp: (prop) => !BUTTON_PROP_NAMES.has(prop),
-})<ButtonRootStyleProps>`
-  /* flex (не grid): ряд [иконка?][лейбл][иконка?], лейбл растёт, иконки тянутся на
-     высоту (align-items: stretch), позиция иконки задаётся порядком в JSX; grid
-     потребовал бы динамических шаблонов под наличие/позицию иконки. */
-  display: flex;
+})<ButtonStyledProps>`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
   inline-size: 100%;
   min-inline-size: 0;
-  align-items: stretch;
+  overflow: hidden;
   ${(props) => getButtonStyles(props)}
-  ${(props) => getLayoutStyles(props)}
 `;

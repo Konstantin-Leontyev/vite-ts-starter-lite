@@ -1,41 +1,105 @@
-import { type ComponentPropsWithRef } from 'react';
-import { useTheme } from 'styled-components';
+/**
+ * Файл: `src/ui/radio-button/index.tsx`
+ * Предоставляет компонент RadioButton для отображения переключателя одного значения
+ * из группы.
+ *
+ * Поддерживает:
+ *  - layout-пропсы: отступы, позиционирование, размеры
+ *  - размерный ряд через проп `sizePreset`
+ *  - подпись справа от кружка через `children`. Без `children` рендерится один кружок
+ *    без обёртки
+ *  - тон подписи через проп `textTone`
+ *  - размер подписи через проп `textSize`
+ *  - курсив подписи через проп `textItalic`
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент RadioButton
+ * 2. Типизировать пропсы через `RadioButtonProps`
+ * 3. Реэкспортировать мост размера текста `getRadioButtonTextSize`
+ *
+ * Потребители:
+ *  - страницы и виджеты приложения — рендерят поля выбора одного значения
+ *  - `src/pages/showcase` — демонстрирует состояния в витрине
+ */
 
-import { Text } from '@ui/text';
+import { type ComponentPropsWithRef, type ReactNode } from 'react';
+
+import { Text, type TextSizePreset, type TextTone } from '@ui/text';
 
 import {
   StyledRadioButtonControl,
   StyledRadioButtonRoot,
+  getRadioButtonTextSize,
   splitLayoutProps,
   type RadioButtonStyleProps,
 } from './radio-button.styles';
 
-export type RadioButtonProps = RadioButtonStyleProps & {
-  /** Один кружок без обёртки-label и подписи (для встраивания в строку списка). */
-  bare?: boolean;
-  label?: string;
+/**
+ * DEFAULT_RADIO_BUTTON_TEXT_TONE — задаёт тон подписи по умолчанию.
+ * Подпись контрола — вторичный текст, поэтому `muted`.
+ */
+const DEFAULT_RADIO_BUTTON_TEXT_TONE: TextTone = 'muted';
+
+/**
+ * RadioButtonProps — представляет пропсы компонента RadioButton.
+ *
+ * @property children — подпись справа от кружка
+ * @property textItalic — включает курсив подписи
+ * @property textSize — размер подписи
+ * @property textTone — тон подписи
+ */
+type RadioButtonProps = RadioButtonStyleProps & {
+  children?: ReactNode;
+  textItalic?: boolean;
+  textSize?: TextSizePreset;
+  textTone?: TextTone;
 } & Omit<
     ComponentPropsWithRef<'input'>,
-    keyof RadioButtonStyleProps | 'className' | 'style' | 'type'
+    'children' | 'className' | 'style' | 'type' | keyof RadioButtonStyleProps
   >;
 
-export function RadioButton({ bare = false, label, ...rest }: RadioButtonProps) {
-  const theme = useTheme();
+/**
+ * RadioButton — отображает переключатель одного значения с опциональной подписью.
+ *
+ * @example
+ * <RadioButton name="plan" value="a">Option A</RadioButton>
+ * <RadioButton name="plan" value="b" />
+ */
+function RadioButton({
+  children,
+  sizePreset,
+  textItalic,
+  textSize,
+  textTone = DEFAULT_RADIO_BUTTON_TEXT_TONE,
+  ...rest
+}: RadioButtonProps) {
+  const { layoutProps, restProps } = splitLayoutProps(rest);
 
-  if (bare) {
-    return <StyledRadioButtonControl type="radio" {...rest} />;
+  const control = (
+    <StyledRadioButtonControl
+      sizePreset={sizePreset}
+      type="radio"
+      {...(children ? restProps : rest)}
+    />
+  );
+
+  if (!children) {
+    return control;
   }
 
-  const { layout, rest: control } = splitLayoutProps(rest);
-
   return (
-    <StyledRadioButtonRoot {...layout}>
-      <StyledRadioButtonControl type="radio" {...control} />
-      {Boolean(label) && (
-        <Text color={theme.colors.muted} sizePreset="thin">
-          {label}
-        </Text>
-      )}
+    <StyledRadioButtonRoot {...layoutProps}>
+      {control}
+      <Text
+        italic={textItalic}
+        sizePreset={textSize ?? getRadioButtonTextSize(sizePreset)}
+        tone={textTone}
+      >
+        {children}
+      </Text>
     </StyledRadioButtonRoot>
   );
 }
+
+/* eslint-disable react-refresh/only-export-components -- реэкспорт моста размера текста */
+export { RadioButton, getRadioButtonTextSize };

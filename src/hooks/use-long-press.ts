@@ -1,13 +1,49 @@
-import { useCallback, useRef, type PointerEventHandler } from 'react';
+/**
+ * Файл: `src/hooks/use-long-press.ts`
+ * Предоставляет распознавание долгого нажатия указателем для контролов.
+ *
+ * Основные задачи:
+ * 1. Предоставить хук `useLongPress`
+ *
+ * Потребители:
+ *  - контролы, например SegmentButtonParts и Table — запускают действие по удержанию
+ */
 
-export const DEFAULT_LONG_PRESS_MS = 500;
+import { useEffect, useRef, type PointerEventHandler } from 'react';
 
+/**
+ * DEFAULT_LONG_PRESS_DELAY_MS — задаёт задержку долгого нажатия по умолчанию.
+ * Используется, когда вызывающий код не передал опцию `delayMs`.
+ */
+const DEFAULT_LONG_PRESS_DELAY_MS = 500;
+
+/**
+ * DEFAULT_LONG_PRESS_DISABLED — задаёт недоступность распознавания по умолчанию.
+ * Используется, когда вызывающий код не передал опцию `disabled`.
+ */
+const DEFAULT_LONG_PRESS_DISABLED = false;
+
+/**
+ * UseLongPressOptions — представляет опции хука `useLongPress`.
+ *
+ * @property delayMs — задержка до срабатывания долгого нажатия
+ * @property disabled — включает недоступное состояние распознавания
+ * @property onLongPress — обработчик срабатывания долгого нажатия
+ */
 type UseLongPressOptions = {
   delayMs?: number;
   disabled?: boolean;
   onLongPress?: () => void;
 };
 
+/**
+ * LongPressPointerProps — представляет обработчики указателя для узла-источника нажатия.
+ *
+ * @property onPointerCancel — обработчик отмены указателя
+ * @property onPointerDown — обработчик начала нажатия
+ * @property onPointerLeave — обработчик ухода указателя с узла
+ * @property onPointerUp — обработчик отпускания указателя
+ */
 type LongPressPointerProps = {
   onPointerCancel: PointerEventHandler;
   onPointerDown: PointerEventHandler;
@@ -15,49 +51,71 @@ type LongPressPointerProps = {
   onPointerUp: PointerEventHandler;
 };
 
+/**
+ * useLongPress — возвращает пропсы указателя и подавление клика после долгого нажатия.
+ * Без `onLongPress` или при `disabled` возвращает `pointerProps` со значением `null`.
+ *
+ * @param options опции задержки, недоступности и обработчика
+ * @returns пропсы указателя и функцию `suppressNextClick`
+ */
 export function useLongPress({
-  delayMs = DEFAULT_LONG_PRESS_MS,
-  disabled = false,
+  delayMs = DEFAULT_LONG_PRESS_DELAY_MS,
+  disabled = DEFAULT_LONG_PRESS_DISABLED,
   onLongPress,
 }: UseLongPressOptions): {
   pointerProps: LongPressPointerProps | null;
   suppressNextClick: () => boolean;
 } {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const triggeredRef = useRef(false);
+  const timerRef = useRef<null | ReturnType<typeof setTimeout>>(null);
+  const isTriggeredRef = useRef(false);
+  const delayMsRef = useRef(delayMs);
+  const disabledRef = useRef(disabled);
+  const onLongPressRef = useRef(onLongPress);
 
-  const clearTimer = useCallback(() => {
+  function clearTimer(): void {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-  }, []);
+  }
 
-  const handlePointerDown = useCallback<PointerEventHandler>(() => {
+  useEffect(() => {
+    delayMsRef.current = delayMs;
+    disabledRef.current = disabled;
+    onLongPressRef.current = onLongPress;
+
     if (disabled || !onLongPress) {
+      clearTimer();
+    }
+  }, [delayMs, disabled, onLongPress]);
+
+  useEffect(() => () => clearTimer(), []);
+
+  function handlePointerDown(): void {
+    if (disabledRef.current || !onLongPressRef.current) {
       return;
     }
 
-    triggeredRef.current = false;
+    isTriggeredRef.current = false;
     clearTimer();
     timerRef.current = setTimeout(() => {
-      triggeredRef.current = true;
-      onLongPress();
-    }, delayMs);
-  }, [clearTimer, delayMs, disabled, onLongPress]);
+      isTriggeredRef.current = true;
+      onLongPressRef.current?.();
+    }, delayMsRef.current);
+  }
 
-  const handlePointerEnd = useCallback<PointerEventHandler>(() => {
+  function handlePointerEnd(): void {
     clearTimer();
-  }, [clearTimer]);
+  }
 
-  const suppressNextClick = useCallback(() => {
-    if (triggeredRef.current) {
-      triggeredRef.current = false;
+  function suppressNextClick(): boolean {
+    if (isTriggeredRef.current) {
+      isTriggeredRef.current = false;
       return true;
     }
 
     return false;
-  }, []);
+  }
 
   if (!onLongPress || disabled) {
     return { pointerProps: null, suppressNextClick };

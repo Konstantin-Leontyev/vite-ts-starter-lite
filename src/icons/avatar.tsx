@@ -1,5 +1,24 @@
+/**
+ * Файл: `src/icons/avatar.tsx`
+ * Предоставляет svg-иконку аватара.
+ *
+ * Основные задачи:
+ * 1. Экспортировать компонент AvatarIcon
+ *
+ * Потребители:
+ *  - `src/components/profile-menu/index.tsx` — показывает аватар в меню
+ */
+
 import { ICON_MUTED_LAYER_OPACITY } from './muted-layer';
 
+/**
+ * AvatarIcon — отображает svg-иконку аватара.
+ *
+ * @example
+ * <Icon>
+ *   <AvatarIcon />
+ * </Icon>
+ */
 export function AvatarIcon() {
   return (
     <svg
@@ -10,14 +29,12 @@ export function AvatarIcon() {
     >
       <g opacity={ICON_MUTED_LAYER_OPACITY} stroke="currentColor">
         <path
-          d="M2.625 22C2.625 17.625 7 15.125 12 15.125C17 15.125 21.375 17.625 21.375 22"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
+          d="M20 17.5C20 19.9853 20 22 12 22C4 22 4 19.9853 4 17.5C4 15.0147 7.58172 13 12 13C16.4183 13 20 15.0147 20 17.5Z"
+          strokeWidth="1.5"
         />
       </g>
       <g stroke="currentColor">
-        <circle cx="12" cy="7" r="4.375" strokeWidth="2" />
+        <circle cx="12" cy="6" r="4" strokeWidth="1.5" />
       </g>
     </svg>
   );
