@@ -2,7 +2,7 @@
  * Файл: `src/pages/showcase/input-settings/index.tsx`
  * Определяет панель настроек компонента Input в витрине дизайн-системы.
  * Содержит контролы для изменения размера, формы, рамки, подписи, плейсхолдера,
- * значения, выравнивания, курсива, ошибки и состояний в реальном времени.
+ * кнопки сброса, ошибки и состояний в реальном времени.
  *
  * Основные задачи:
  * 1. Типизировать состояние витрины через `InputWidgetState`
@@ -15,9 +15,7 @@
 import { type ChangeEvent } from 'react';
 
 import { Checkbox } from '@ui/checkbox';
-import { Input } from '@ui/input';
 import { type ShapePreset, type SizePreset } from '@ui/presets';
-import { type TextAlignPreset } from '@ui/text';
 import { type TonePreset } from '@ui/tones';
 
 import { BorderGroup } from '../border-group';
@@ -43,10 +41,9 @@ import { TextGroup } from '../text-group';
  *   дефолт компонента не хранится в стейте
  * @property shape — форма строки-поля
  * @property showBorder — включает рамку контрола
+ * @property showClearButton — включает кнопку сброса
  * @property showShadow — включает тень при включённой рамке
- * @property sizePreset — размер контрола
- * @property textAlign — горизонтальное выравнивание значения
- * @property textItalic — включает курсив значения
+ * @property size — размер контрола
  * @property value — значение поля
  */
 export type InputWidgetState = {
@@ -60,10 +57,9 @@ export type InputWidgetState = {
   reserveErrorSpace?: boolean;
   shape: ShapePreset;
   showBorder: boolean;
+  showClearButton: boolean;
   showShadow: boolean;
-  sizePreset: SizePreset;
-  textAlign?: TextAlignPreset;
-  textItalic: boolean;
+  size: SizePreset;
   value: string;
 };
 
@@ -93,10 +89,10 @@ export function InputSettings({ onChange, state }: InputSettingsProps) {
       <ControlGroup
         label={state.label}
         shape={state.shape}
-        sizePreset={state.sizePreset}
+        size={state.size}
         onLabelChange={(label) => onChange('label', label)}
         onShapeChange={(shape) => onChange('shape', shape)}
-        onSizeChange={(size) => onChange('sizePreset', size)}
+        onSizeChange={(size) => onChange('size', size)}
       />
 
       <BorderGroup
@@ -108,28 +104,24 @@ export function InputSettings({ onChange, state }: InputSettingsProps) {
         onShowShadowChange={(show) => onChange('showShadow', show)}
       />
 
-      <Input
-        label="Placeholder:"
-        value={state.placeholder}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('placeholder', event.target.value)
-        }
-      />
-
       <TextGroup
-        align={state.textAlign}
         contents={[
           {
-            value: state.value,
-            onChange: (value) => onChange('value', value),
+            value: state.placeholder,
+            onChange: (value) => onChange('placeholder', value),
           },
         ]}
-        italic={state.textItalic}
-        labelPrefix="Text"
-        showOptionsWithEmptyContent
-        onAlignChange={(align) => onChange('textAlign', align)}
-        onItalicChange={(value) => onChange('textItalic', value)}
+        labelPrefix="Placeholder"
       />
+
+      <Checkbox
+        checked={state.showClearButton}
+        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+          onChange('showClearButton', event.target.checked)
+        }
+      >
+        Show clear button
+      </Checkbox>
 
       <FieldErrorGroup
         errorPlaceholder={state.errorPlaceholder}
@@ -138,20 +130,31 @@ export function InputSettings({ onChange, state }: InputSettingsProps) {
         onReserveErrorSpaceChange={(reserve) => onChange('reserveErrorSpace', reserve)}
       />
 
-      <TextGroup
-        contents={[
-          {
-            value: state.error,
-            onChange: (value) => onChange('error', value),
-          },
-        ]}
-        labelPrefix="Error"
-        show={{
-          checked: state.invalid,
-          label: 'Invalid',
-          onChange: (checked) => onChange('invalid', checked),
+      <Checkbox
+        checked={state.invalid}
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          const checked = event.target.checked;
+          onChange('invalid', checked);
+
+          if (!checked) {
+            onChange('error', '');
+          }
         }}
-      />
+      >
+        Invalid
+      </Checkbox>
+
+      {state.invalid && (
+        <TextGroup
+          contents={[
+            {
+              value: state.error,
+              onChange: (value) => onChange('error', value),
+            },
+          ]}
+          labelPrefix="Error"
+        />
+      )}
 
       <Checkbox
         checked={state.disabled}

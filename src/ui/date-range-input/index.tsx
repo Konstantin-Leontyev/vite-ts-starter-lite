@@ -4,8 +4,13 @@
  *
  * Поддерживает:
  *  - layout-пропсы: отступы, позиционирование, размеры
- *  - размерный ряд через проп `sizePreset`
+ *  - размерный ряд через проп `size`
  *  - форму через проп `shape`
+ *  - кнопка сброса внутри ряда всегда `square`. Публичного пропа формы сброса нет:
+ *    иначе шов с соседней кнопкой поедет
+ *  - тон рамки через проп `borderTone`
+ *  - форму кнопок подвала через проп `buttonShape`. Без `buttonShape` совпадает
+ *    с `shape`
  *  - форму подсветки дня через проп `dayShape`. Без `dayShape` совпадает с `shape`
  *  - недоступное состояние через проп `disabled`
  *  - конечный день диапазона через проп `endDay`
@@ -23,17 +28,21 @@
  *  - иконка календаря всегда в позиции `start`. Публичного пропа позиции нет
  *  - подпись над рядом через проп `label`
  *  - черновик диапазона в открытой панели: клики по дням не пишут наружу до
- *    подтверждения. Enter и `Set` подтверждают и закрывают. `Close`, Escape и клик
- *    снаружи закрывают без подтверждения. `Reset` чистит черновик без закрытия
+ *    подтверждения. `Set` и `Enter` вне `Reset` и `Close` подтверждают и закрывают.
+ *    `Enter` на `Close`, `Escape` и клик снаружи закрывают без подтверждения.
+ *    `Reset` и `Enter` на нём чистят черновик без закрытия
  *
  * Основные задачи:
  * 1. Экспортировать компонент DateRangeInput
  * 2. Типизировать пропсы через `DateRangeInputProps`
  * 3. Выставлять `role="group"` и `aria-labelledby` при передаче `label`, а также
- *    `aria`-атрибуты сегментов и панели календаря
+ *    `aria`-атрибуты сегментов и панели календаря.
+ *    Фокус панели — на выбранном дне, иначе на сегодняшнем, иначе на первом доступном.
+ *    Подвал панели — одна Tab-остановка со стрелками между кнопками
  * 4. Реэкспортировать `todayUtc` из `src/ui/date-range-input/calendar-panel`
  *
  * Потребители:
+ *  - страницы и виджеты приложения — выбирают диапазон дат
  *  - `src/pages/showcase` — демонстрирует состояния в витрине
  */
 
@@ -46,27 +55,27 @@ import {
 } from 'react';
 
 import { useAnchoredOpen } from '@hooks/use-anchored-open';
-import { placeCalendarPanel } from '@hooks/use-anchored-portal-position';
 import { CalendarIcon, CloseIcon } from '@icons';
 import { resolveClearAriaLabel } from '@ui/a11y';
-import { AnchoredPortal } from '@ui/anchored-portal';
+import { AnchoredPanel } from '@ui/anchored-panel';
 import { FieldLabel } from '@ui/field-label';
 import { Icon } from '@ui/icon';
-import { type ShapePreset } from '@ui/presets';
-import { getSegmentButtonTextSize } from '@ui/segment-button';
-import { SegmentButtonParts } from '@ui/segment-button-parts';
+import { DEFAULT_SHAPE_PRESET, getTextSize, type ShapePreset } from '@ui/presets';
+import {
+  SEGMENT_BUTTON_PARTS_FLUSH_SHAPE,
+  SegmentButtonParts,
+  SegmentButtonPartsDivider,
+} from '@ui/segment-button-parts';
 
 import {
   CalendarPanel,
   DATE_PLACEHOLDER,
-  focusCalendarPanelInitial,
   formatIsoDayCompact,
   isIsoDayAfter,
   monthViewFromIsoDayOrToday,
   type MonthView,
 } from './calendar-panel';
 import {
-  DEFAULT_DATE_RANGE_INPUT_SHAPE,
   StyledDateRangeInputPanel,
   StyledDateRangeInputRoot,
   StyledDateRangeInputTriggerRow,
@@ -110,15 +119,30 @@ const DEFAULT_DATE_RANGE_INPUT_START_LABEL = 'Start date';
 const PANEL_COMMIT_LABEL = 'Set';
 
 /**
+ * PANEL_COMMIT_ACTION — задаёт `data-action` кнопки подтверждения черновика.
+ */
+const PANEL_COMMIT_ACTION = 'commit';
+
+/**
  * PANEL_RESET_LABEL — задаёт текст кнопки сброса черновика в панели.
  */
 const PANEL_RESET_LABEL = 'Reset';
+
+/**
+ * PANEL_RESET_ACTION — задаёт `data-action` кнопки сброса черновика.
+ */
+const PANEL_RESET_ACTION = 'reset';
 
 /**
  * PANEL_DISMISS_LABEL — задаёт текст кнопки закрытия панели без подтверждения.
  * Совпадает по смыслу с Escape.
  */
 const PANEL_DISMISS_LABEL = 'Close';
+
+/**
+ * PANEL_DISMISS_ACTION — задаёт `data-action` кнопки закрытия панели.
+ */
+const PANEL_DISMISS_ACTION = 'dismiss';
 
 /**
  * CALENDAR_PANEL_ARIA_LABEL — задаёт текст `aria-label` диалога панели календаря.
@@ -135,6 +159,7 @@ const CLEAR_DATE_RANGE_ARIA_LABEL = 'Clear date range';
 /**
  * DateRangeInputProps — представляет пропсы компонента DateRangeInput.
  *
+ * @property buttonShape — форма кнопок подвала панели. Без пропа совпадает с `shape`
  * @property dayShape — форма подсветки дня в панели. Без пропа совпадает с `shape`
  * @property disabled — включает недоступное состояние
  * @property endDay — конечный день диапазона в формате ISO
@@ -161,6 +186,7 @@ type DateRangeInputProps = DateRangeInputStyleProps &
     | 'style'
     | keyof DateRangeInputStyleProps
   > & {
+    buttonShape?: ShapePreset;
     dayShape?: ShapePreset;
     disabled?: boolean;
     endDay?: string;
@@ -288,6 +314,8 @@ function clearDateRangeButtonAriaLabel(startLabel: string, endLabel: string): st
  * />
  */
 export function DateRangeInput({
+  borderTone,
+  buttonShape: buttonShapeProp,
   dayShape: dayShapeProp,
   disabled = DEFAULT_DATE_RANGE_INPUT_DISABLED,
   endDay = DEFAULT_DATE_RANGE_INPUT_END_DAY,
@@ -299,7 +327,7 @@ export function DateRangeInput({
   onEndDayChange,
   onStartDayChange,
   shape,
-  sizePreset,
+  size,
   startDay = DEFAULT_DATE_RANGE_INPUT_START_DAY,
   startLabel = DEFAULT_DATE_RANGE_INPUT_START_LABEL,
   ...rest
@@ -312,19 +340,27 @@ export function DateRangeInput({
   const [viewMonth, setViewMonth] = useState<MonthView>(() =>
     monthViewFromIsoDayOrToday(startDay, maxDay)
   );
+  const [footerTabStop, setFooterTabStop] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRowRef = useRef<HTMLDivElement>(null);
   const startTriggerRef = useRef<HTMLButtonElement>(null);
   const endTriggerRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement>(null);
+  const selectedDayRef = useRef<HTMLButtonElement>(null);
+  const todayDayRef = useRef<HTMLButtonElement>(null);
+  const firstAvailableDayRef = useRef<HTMLButtonElement>(null);
+  const commitButtonRef = useRef<HTMLButtonElement>(null);
+  const resetButtonRef = useRef<HTMLButtonElement>(null);
+  const dismissButtonRef = useRef<HTMLButtonElement>(null);
   const labelId = useId();
   const panelId = useId();
-  const dayShape = dayShapeProp ?? shape ?? DEFAULT_DATE_RANGE_INPUT_SHAPE;
-  const surfaceProps = { shape, sizePreset };
+  const buttonShape = buttonShapeProp ?? shape ?? DEFAULT_SHAPE_PRESET;
+  const dayShape = dayShapeProp ?? shape ?? DEFAULT_SHAPE_PRESET;
+  const surfaceProps = { borderTone, shape, size };
   const calendarIcon = <CalendarIcon />;
   const isActive = startDay !== '' || endDay !== '';
   const showClear = isActive && onClear !== undefined && !disabled;
-  const textSizePreset = getSegmentButtonTextSize(sizePreset);
+  const textSizePreset = getTextSize(size);
 
   function handleOpenFromSegment(sourceDay: string): void {
     if (disabled) {
@@ -405,20 +441,87 @@ export function DateRangeInput({
     event.preventDefault();
 
     if (event.target instanceof HTMLElement) {
-      const focusedLabel = event.target.closest('button')?.textContent?.trim();
+      const focusedAction = event.target.closest('button')?.dataset.action;
 
-      if (focusedLabel === PANEL_RESET_LABEL) {
+      if (focusedAction === PANEL_RESET_ACTION) {
         handlePanelReset();
         return;
       }
 
-      if (focusedLabel === PANEL_DISMISS_LABEL) {
+      if (focusedAction === PANEL_DISMISS_ACTION) {
         handlePanelDismiss();
         return;
       }
     }
 
     handleCommit();
+  }
+
+  function handleOpenFocus(): void {
+    (
+      selectedDayRef.current ??
+      todayDayRef.current ??
+      firstAvailableDayRef.current
+    )?.focus();
+  }
+
+  function handleSegmentKeyDown(event: KeyboardEvent<HTMLButtonElement>): void {
+    if (event.key !== 'ArrowDown') {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (event.currentTarget === startTriggerRef.current) {
+      handleOpenStart();
+      return;
+    }
+
+    handleOpenEnd();
+  }
+
+  function handleFooterKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number
+  ): void {
+    const footerRefs = [commitButtonRef, resetButtonRef, dismissButtonRef];
+    const isRtl = getComputedStyle(event.currentTarget).direction === 'rtl';
+    const nextKey = isRtl ? 'ArrowLeft' : 'ArrowRight';
+    const previousKey = isRtl ? 'ArrowRight' : 'ArrowLeft';
+    let nextIndex: number;
+
+    switch (event.key) {
+      case 'ArrowUp':
+      case previousKey: {
+        nextIndex = (index + footerRefs.length - 1) % footerRefs.length;
+        break;
+      }
+      case 'ArrowDown':
+      case nextKey: {
+        nextIndex = (index + 1) % footerRefs.length;
+        break;
+      }
+      case 'End': {
+        nextIndex = footerRefs.length - 1;
+        break;
+      }
+      case 'Home': {
+        nextIndex = 0;
+        break;
+      }
+      default: {
+        return;
+      }
+    }
+
+    event.preventDefault();
+
+    if (nextIndex === index) {
+      return;
+    }
+
+    setFooterTabStop(nextIndex);
+    footerRefs[nextIndex]?.current?.focus();
   }
 
   function handleOpenStart(): void {
@@ -442,6 +545,7 @@ export function DateRangeInput({
     textTone: startDay === '' ? ('muted' as const) : undefined,
     title: startLabel,
     onClick: handleOpenStart,
+    onKeyDown: handleSegmentKeyDown,
   };
 
   const rightSegment = {
@@ -457,6 +561,7 @@ export function DateRangeInput({
     textTone: endDay === '' ? ('muted' as const) : undefined,
     title: endLabel,
     onClick: handleOpenEnd,
+    onKeyDown: handleSegmentKeyDown,
   };
 
   const labelledBy = label ? labelId : undefined;
@@ -464,7 +569,6 @@ export function DateRangeInput({
   return (
     <StyledDateRangeInputRoot
       aria-labelledby={labelledBy}
-      data-open={isOpen ? 'true' : undefined}
       ref={rootRef}
       role={labelledBy ? 'group' : undefined}
       {...layoutProps}
@@ -472,7 +576,7 @@ export function DateRangeInput({
     >
       <FieldLabel id={labelId}>{label}</FieldLabel>
       <StyledDateRangeInputTriggerRow
-        data-has-clear={showClear ? '' : undefined}
+        data-has-clear={showClear ? true : undefined}
         data-open={isOpen ? 'true' : undefined}
         ref={triggerRowRef}
         tabIndex={-1}
@@ -481,40 +585,39 @@ export function DateRangeInput({
         <SegmentButtonParts
           left={leftSegment}
           right={rightSegment}
-          shape={shape}
-          sizePreset={sizePreset}
+          // Прямые углы: скругление даёт обрезка ряда-триггера, не сегменты.
+          shape={SEGMENT_BUTTON_PARTS_FLUSH_SHAPE}
+          size={size}
           textSize={textSizePreset}
         />
 
         {showClear && (
-          <Icon
-            aria-label={clearDateRangeButtonAriaLabel(startLabel, endLabel)}
-            as="button"
-            data-slot="clear"
-            disabled={disabled}
-            showBorder
-            showShadow={false}
-            sizePreset={sizePreset}
-            onClick={handleClear}
-          >
-            <CloseIcon />
-          </Icon>
+          <>
+            <SegmentButtonPartsDivider aria-hidden="true" size={size} />
+            <Icon
+              aria-label={clearDateRangeButtonAriaLabel(startLabel, endLabel)}
+              as="button"
+              data-slot="clear"
+              disabled={disabled}
+              shape="square"
+              showBorder={false}
+              size={size}
+              onClick={handleClear}
+            >
+              <CloseIcon />
+            </Icon>
+          </>
         )}
       </StyledDateRangeInputTriggerRow>
 
-      <AnchoredPortal
+      <AnchoredPanel
+        anchorRef={triggerRowRef}
         dismissZoneRefs={[rootRef, panelRef]}
         open={isOpen}
-        openFocusDeps={[viewMonth]}
         panelRef={panelRef}
-        positionStrategy={{
-          anchorRef: triggerRowRef,
-          apply: placeCalendarPanel,
-          layoutDeps: [viewMonth],
-        }}
         returnFocusRef={returnFocusRef}
         onDismiss={handlePanelDismiss}
-        onOpenFocus={focusCalendarPanelInitial}
+        onOpenFocus={handleOpenFocus}
       >
         <StyledDateRangeInputPanel
           aria-label={CALENDAR_PANEL_ARIA_LABEL}
@@ -527,37 +630,55 @@ export function DateRangeInput({
         >
           <CalendarPanel
             dayShape={dayShape}
+            firstAvailableDayRef={firstAvailableDayRef}
             maxDay={maxDay}
             minDay={minDay}
             rangeEnd={draftEndDay}
             rangeStart={draftStartDay}
+            selectedDayRef={selectedDayRef}
             shape={shape}
-            sizePreset={sizePreset}
+            size={size}
+            todayDayRef={todayDayRef}
             viewMonth={viewMonth}
             onSelectDay={handleSelectDay}
             onViewMonthChange={setViewMonth}
           />
           <SegmentButtonParts
             center={{
+              dataAction: PANEL_RESET_ACTION,
               label: PANEL_RESET_LABEL,
+              ref: resetButtonRef,
+              tabIndex: footerTabStop === 1 ? 0 : -1,
               textTone: 'danger',
               onClick: handlePanelReset,
+              onFocus: () => setFooterTabStop(1),
+              onKeyDown: (event) => handleFooterKeyDown(event, 1),
             }}
             left={{
+              dataAction: PANEL_COMMIT_ACTION,
               label: PANEL_COMMIT_LABEL,
+              ref: commitButtonRef,
+              tabIndex: footerTabStop === 0 ? 0 : -1,
               textTone: 'success',
               onClick: handleCommit,
+              onFocus: () => setFooterTabStop(0),
+              onKeyDown: (event) => handleFooterKeyDown(event, 0),
             }}
             right={{
+              dataAction: PANEL_DISMISS_ACTION,
               label: PANEL_DISMISS_LABEL,
+              ref: dismissButtonRef,
+              tabIndex: footerTabStop === 2 ? 0 : -1,
               onClick: handlePanelDismiss,
+              onFocus: () => setFooterTabStop(2),
+              onKeyDown: (event) => handleFooterKeyDown(event, 2),
             }}
-            shape={shape}
-            sizePreset={sizePreset}
+            shape={buttonShape}
+            size={size}
             textSize={textSizePreset}
           />
         </StyledDateRangeInputPanel>
-      </AnchoredPortal>
+      </AnchoredPanel>
     </StyledDateRangeInputRoot>
   );
 }

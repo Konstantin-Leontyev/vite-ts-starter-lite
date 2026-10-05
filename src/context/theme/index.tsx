@@ -7,7 +7,8 @@
  * 1. Экспортировать компонент ThemeProvider
  * 2. Типизировать пропсы через `ThemeProviderProps`
  * 3. Сохранять выбор темы в `localStorage`, чтобы он переживал перезагрузку
- * 4. Подключать глобальные стили: сначала `GlobalResetStyle`, затем `GlobalThemeStyle`
+ * 4. Подключать глобальные стили: сначала `GlobalResetStyle`, затем
+ *    `GlobalThemeStyle`, затем `AnchoredPanelPositionTryStyle`
  * 5. Предоставить API чтения и переключения темы через `ThemeContext`
  *
  * Потребители:
@@ -17,6 +18,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ThemeProvider as StyledThemeProvider } from 'styled-components';
 
+import { AnchoredPanelPositionTryStyle } from '@ui/anchored-panel';
 import { GlobalResetStyle } from '@ui/reset';
 import { GlobalThemeStyle, styledDarkTheme, styledLightTheme } from '@ui/theme';
 
@@ -39,8 +41,8 @@ const THEME_STORAGE_KEY = 'app-theme';
 
 /**
  * readStoredMode — возвращает сохранённый режим темы из `localStorage`.
- * При отсутствии `window`, сохранённого значения или при некорректном формате
- * возвращает светлую тему.
+ * При отсутствии `window`, сохранённого значения, некорректном формате или ошибке
+ * чтения возвращает светлую тему.
  *
  * @returns сохранённый режим темы или `light`
  */
@@ -49,9 +51,13 @@ function readStoredMode(): ThemeMode {
     return 'light';
   }
 
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
 
-  return stored === 'dark' || stored === 'light' ? stored : 'light';
+    return stored === 'dark' || stored === 'light' ? stored : 'light';
+  } catch {
+    return 'light';
+  }
 }
 
 /**
@@ -67,10 +73,15 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   /**
    * Сохраняет выбор темы в `localStorage`.
+   * Ошибка записи остаётся без последствий.
    * Побочный эффект без влияния на разметку.
    */
   useEffect(() => {
-    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, mode);
+    } catch {
+      return;
+    }
   }, [mode]);
 
   /**
@@ -90,6 +101,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       <StyledThemeProvider theme={mode === 'light' ? styledLightTheme : styledDarkTheme}>
         <GlobalResetStyle />
         <GlobalThemeStyle />
+        <AnchoredPanelPositionTryStyle />
         {children}
       </StyledThemeProvider>
     </ThemeContext.Provider>

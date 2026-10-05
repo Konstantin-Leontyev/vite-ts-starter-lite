@@ -1,8 +1,9 @@
 /**
  * Файл: `src/ui/field-error/index.tsx`
  * Предоставляет компонент FieldError для отображения строки ошибки или подсказки поля.
- * Вид строки вшит: размер `thin`, выравнивание `center`, ошибка — тон `danger`,
- * подсказка — тон `muted`. Вызывающий код тон, выравнивание и курсив не переопределяет.
+ * Фиксирует вид строки: размер `thin`, выравнивание `center`, ошибка — тон `danger`,
+ * подсказка — тон `muted`. Не даёт вызывающему коду переопределить тон, выравнивание
+ * и курсив.
  *
  * Поддерживает:
  *  - layout-пропсы: отступы, позиционирование, размеры
@@ -18,14 +19,20 @@
  * 4. Выставлять `aria-live="polite"`
  *
  * Потребители:
- *  - контролы Input и RangeInput — рендерят строку ошибки поля и резерв высоты под неё
- *  - `src/ui/table` — полоска ошибки или подсказки в панелях добавления и редактирования
- *    строки
+ *  - контролы, например Input и RangeInput — рендерят строку ошибки поля и резерв
+ *    высоты под неё
+ *  - `src/ui/table` — рендерит полоску ошибки или подсказки в панелях добавления
+ *    и редактирования строки
  */
 
-import { type CSSProperties, type ComponentProps } from 'react';
-
-import { Text, getTextLineHeight, type TextSizePreset, type TextTone } from '@ui/text';
+import {
+  Text,
+  getTextLineHeight,
+  type TextAlignPreset,
+  type TextProps,
+  type TextSizePreset,
+  type TextTonePreset,
+} from '@ui/text';
 
 /**
  * DEFAULT_FIELD_ERROR_RESERVE_ERROR_SPACE — задаёт резерв высоты строки по умолчанию.
@@ -37,7 +44,7 @@ const DEFAULT_FIELD_ERROR_RESERVE_ERROR_SPACE = false;
  * FIELD_ERROR_ALIGN — задаёт горизонтальное выравнивание строки.
  * Выравнивание вшито в FieldError, вызывающий код его не переопределяет.
  */
-const FIELD_ERROR_ALIGN: CSSProperties['textAlign'] = 'center';
+const FIELD_ERROR_ALIGN: TextAlignPreset = 'center';
 
 /**
  * FIELD_ERROR_SIZE_PRESET — задаёт типографический пресет строки.
@@ -49,13 +56,13 @@ const FIELD_ERROR_SIZE_PRESET: TextSizePreset = 'thin';
  * FIELD_ERROR_TEXT_TONE — задаёт тон текста ошибки.
  * Сообщение об ошибке выделяется семантическим тоном `danger`.
  */
-const FIELD_ERROR_TEXT_TONE: TextTone = 'danger';
+const FIELD_ERROR_TEXT_TONE: TextTonePreset = 'danger';
 
 /**
  * FIELD_ERROR_PLACEHOLDER_TEXT_TONE — задаёт тон текста подсказки.
  * Подсказка — вторичный текст, поэтому `muted`.
  */
-const FIELD_ERROR_PLACEHOLDER_TEXT_TONE: TextTone = 'muted';
+const FIELD_ERROR_PLACEHOLDER_TEXT_TONE: TextTonePreset = 'muted';
 
 /**
  * FieldErrorProps — представляет пропсы компонента FieldError.
@@ -71,7 +78,7 @@ type FieldErrorProps = {
   placeholder?: string;
   reserveErrorSpace?: boolean;
 } & Omit<
-  ComponentProps<typeof Text>,
+  TextProps<'p'>,
   | 'align'
   | 'as'
   | 'children'
@@ -83,7 +90,7 @@ type FieldErrorProps = {
   | 'id'
   | 'italic'
   | 'lineHeight'
-  | 'sizePreset'
+  | 'size'
   | 'style'
   | 'tone'
   | 'whiteSpace'
@@ -127,7 +134,7 @@ export function FieldError({
       minBlockSize={
         reserveErrorSpace ? getTextLineHeight(FIELD_ERROR_SIZE_PRESET) : undefined
       }
-      sizePreset={FIELD_ERROR_SIZE_PRESET}
+      size={FIELD_ERROR_SIZE_PRESET}
       tone={hasError ? FIELD_ERROR_TEXT_TONE : FIELD_ERROR_PLACEHOLDER_TEXT_TONE}
       {...rest}
     >

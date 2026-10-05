@@ -1,8 +1,8 @@
 /**
  * Файл: `src/pages/showcase/table-settings/index.tsx`
  * Определяет панель настроек компонента Table в витрине дизайн-системы.
- * Содержит контролы для изменения размера, рамки, полос, нумерации, выбора строк
- * и режима редактирования в реальном времени.
+ * Содержит контролы для изменения размера, рамки, полос, нумерации, выбора строк,
+ * режима редактирования и подсказок панелей добавления и правки в реальном времени.
  *
  * Основные задачи:
  * 1. Типизировать состояние витрины через `TableWidgetState`
@@ -16,40 +16,43 @@ import { type ChangeEvent } from 'react';
 
 import { Checkbox } from '@ui/checkbox';
 import { SIZE_PRESET_KEYS, type SizePreset } from '@ui/presets';
+import { DEFAULT_ADD_HINT, DEFAULT_EDIT_HINT } from '@ui/table';
 
 import { StyledSettingsForm } from '../showcase.styles';
 import { SizeListbox } from '../size-listbox';
+import { TextGroup } from '../text-group';
 
 /**
  * TableWidgetState — представляет состояние настроек компонента Table в витрине дизайн-системы.
  * Ключи совпадают с именами пропов компонента Table, кроме витринных ключей:
  * `showIndexColumn` управляет колонкой нумерации каталога в превью, `continuousNumbering`
- * задаёт сквозную нумерацию членов групп, `separateCheckboxColumn` выносит чекбокс
- * в отдельную колонку.
+ * задаёт сквозную нумерацию членов групп.
+ * Пустая строка `addHint` или `editHint` означает вызов без этого пропа.
  * Используется для синхронизации значений между панелью управления и демонстрационной таблицей.
  *
+ * @property addHint — подсказка в полоске ошибки панели добавления, пока нет ошибки
  * @property checkable — включает режим выбора строк
  * @property continuousNumbering — витринный ключ сквозной нумерации членов групп. Выключенный —
  *   нумерация сбрасывается в каждой группе
  * @property editable — включает добавление и редактирование строк
+ * @property editHint — подсказка в полоске ошибки панели редактирования, пока нет ошибки
  * @property hoverHighlight — включает подсветку строки при наведении
- * @property separateCheckboxColumn — витринный ключ отдельной колонки чекбокса. Выключенный —
- *   чекбокс рендерится в колонке Product
  * @property showBorder — включает рамку вокруг таблицы
  * @property showIndexColumn — витринный ключ показа колонки нумерации каталога. Выключенный —
  *   таблица без колонки `#`
- * @property sizePreset — размер таблицы
+ * @property size — размер таблицы
  * @property striped — включает чередование фона строк
  */
 export type TableWidgetState = {
+  addHint: string;
   checkable: boolean;
   continuousNumbering: boolean;
   editable: boolean;
+  editHint: string;
   hoverHighlight: boolean;
-  separateCheckboxColumn: boolean;
   showBorder: boolean;
   showIndexColumn: boolean;
-  sizePreset: SizePreset;
+  size: SizePreset;
   striped: boolean;
 };
 
@@ -79,8 +82,8 @@ export function TableSettings({ onChange, state }: TableSettingsProps) {
       <SizeListbox
         label="Size:"
         sizes={SIZE_PRESET_KEYS}
-        value={state.sizePreset}
-        onChange={(size) => onChange('sizePreset', size)}
+        value={state.size}
+        onChange={(size) => onChange('size', size)}
       />
 
       <Checkbox
@@ -107,7 +110,7 @@ export function TableSettings({ onChange, state }: TableSettingsProps) {
           onChange('showIndexColumn', event.target.checked)
         }
       >
-        Index column
+        Show index column
       </Checkbox>
 
       {state.showIndexColumn && (
@@ -130,17 +133,6 @@ export function TableSettings({ onChange, state }: TableSettingsProps) {
         Checkable
       </Checkbox>
 
-      {state.checkable && (
-        <Checkbox
-          checked={state.separateCheckboxColumn}
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            onChange('separateCheckboxColumn', event.target.checked)
-          }
-        >
-          Separate checkbox column
-        </Checkbox>
-      )}
-
       <Checkbox
         checked={state.hoverHighlight}
         onChange={(event: ChangeEvent<HTMLInputElement>) =>
@@ -158,6 +150,32 @@ export function TableSettings({ onChange, state }: TableSettingsProps) {
       >
         Editable (add / edit)
       </Checkbox>
+
+      {state.editable && (
+        <>
+          <TextGroup
+            contents={[
+              {
+                boxedString: DEFAULT_ADD_HINT,
+                value: state.addHint,
+                onChange: (value) => onChange('addHint', value),
+              },
+            ]}
+            labelPrefix="Add hint"
+          />
+
+          <TextGroup
+            contents={[
+              {
+                boxedString: DEFAULT_EDIT_HINT,
+                value: state.editHint,
+                onChange: (value) => onChange('editHint', value),
+              },
+            ]}
+            labelPrefix="Edit hint"
+          />
+        </>
+      )}
     </StyledSettingsForm>
   );
 }

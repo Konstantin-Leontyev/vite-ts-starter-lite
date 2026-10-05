@@ -6,33 +6,46 @@
  * 1. Связать ключи иконок с функциями рендеринга в `ICONS`
  * 2. Типизировать ключи иконок через `IconKey`
  * 3. Предоставить функцию `getIcon`
- * 4. Предоставить опции `LIST_OPTIONS` и `COMBOBOX_OPTIONS`
+ * 4. Предоставить функцию `resolveIconPaddingSizePreset`
+ * 5. Предоставить опции `LIST_OPTIONS` и `ICON_OPTIONS`
  *
  * Потребители:
- *  - `src/pages/showcase/button-settings/index.tsx` — выбирает иконку через `COMBOBOX_OPTIONS`
- *  - `src/pages/showcase/icon-settings/index.tsx` — выбирает иконку через `COMBOBOX_OPTIONS`
- *  - `src/pages/showcase/segment-button-settings/index.tsx` — выбирает иконку через `COMBOBOX_OPTIONS`
- *  - `src/pages/showcase/card-settings/index.tsx` — выбирает иконку через `COMBOBOX_OPTIONS`
- *  - `src/pages/showcase/index.tsx` — подставляет глифы через `getIcon`, опции превью Combobox
- *    через `LIST_OPTIONS` и `COMBOBOX_OPTIONS`
+ *  - панели настроек витрины — выбирают иконку через `ICON_OPTIONS`:
+ *     - `src/pages/showcase/button-settings/index.tsx`
+ *     - `src/pages/showcase/search-field-settings/index.tsx`
+ *     - `src/pages/showcase/segment-button-settings/index.tsx`
+ *  - панель Icon и сателлит IconRowGroup — выбирают иконку через `ICON_OPTIONS`
+ *    и ключ ряда отступа через `resolveIconPaddingSizePreset`:
+ *     - `src/pages/showcase/icon-settings/index.tsx`
+ *     - `src/pages/showcase/icon-row-group/index.tsx`
+ *  - `src/pages/showcase/icon-row-group/icon-row-group.ts` — собирает глиф действия
+ *    через `getIcon`
+ *  - `src/pages/showcase/index.tsx` — подставляет глифы через `getIcon`, опции превью Listbox
+ *    через `LIST_OPTIONS` и `ICON_OPTIONS`
  */
 
 import { type ReactNode } from 'react';
 
 import {
   AddCircleIcon,
+  CaptionIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ClockIcon,
   CloseIcon,
   CopyIcon,
   DownloadIcon,
+  DualIcon,
+  EarthIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
   SignOutIcon,
   UploadIcon,
 } from '@icons';
-import { type ComboboxOption } from '@ui/combobox';
+import { ICON_SIZE_PRESET_KEYS, getIconPadding, type IconSizePreset } from '@ui/icon';
+import { type ListboxOption } from '@ui/listbox';
+import { type SpacingValue } from '@ui/spacing';
 
 /**
  * ICONS — связывает ключи иконок с функциями рендеринга React-узлов.
@@ -40,11 +53,15 @@ import { type ComboboxOption } from '@ui/combobox';
  */
 const ICONS = {
   'add-circle': () => <AddCircleIcon />,
+  caption: () => <CaptionIcon />,
   close: () => <CloseIcon />,
   'chevron-down': () => <ChevronDownIcon />,
   'chevron-up': () => <ChevronUpIcon />,
+  clock: () => <ClockIcon />,
   copy: () => <CopyIcon />,
   download: () => <DownloadIcon />,
+  dual: () => <DualIcon />,
+  earth: () => <EarthIcon />,
   plus: () => <PlusIcon />,
   upload: () => <UploadIcon />,
   search: () => <SearchIcon />,
@@ -78,10 +95,31 @@ export function getIcon(key: IconKey): ReactNode {
 }
 
 /**
- * LIST_OPTIONS — формирует опции с подписью без иконки из ключей `ICONS`.
- * Используется в превью Combobox без иконок в `src/pages/showcase/index.tsx`.
+ * resolveIconPaddingSizePreset — возвращает ключ размерного ряда под текущий
+ * отступ окна.
+ * Если отступ совпадает с мостом от `size` — возвращает его.
+ * Иначе берёт первый ключ ряда, у которого `getIconPadding` даёт то же значение.
+ *
+ * @param padding текущий отступ окна Icon
+ * @param size предпочтительный ключ ряда, если отступ совпадает с его мостом
+ * @returns ключ ряда для контрола отступа окна Icon
  */
-export const LIST_OPTIONS: readonly ComboboxOption[] = Object.freeze(
+export function resolveIconPaddingSizePreset(
+  padding: SpacingValue,
+  size: IconSizePreset
+): IconSizePreset {
+  if (getIconPadding(size) === padding) {
+    return size;
+  }
+
+  return ICON_SIZE_PRESET_KEYS.find((key) => getIconPadding(key) === padding) ?? size;
+}
+
+/**
+ * LIST_OPTIONS — формирует опции с подписью без иконки из ключей `ICONS`.
+ * Используется в превью Listbox без иконок в `src/pages/showcase/index.tsx`.
+ */
+export const LIST_OPTIONS: readonly ListboxOption[] = Object.freeze(
   Object.keys(ICONS).map((key) => ({
     label: resolveIconLabel(key as IconKey),
     value: key,
@@ -89,11 +127,11 @@ export const LIST_OPTIONS: readonly ComboboxOption[] = Object.freeze(
 );
 
 /**
- * COMBOBOX_OPTIONS — формирует опции Combobox с иконкой и подписью из ключей `ICONS`.
- * Используется в выборе иконки в настройках Button, Icon, SegmentButton и Card
- * и в превью Combobox с иконками.
+ * ICON_OPTIONS — формирует опции Listbox с иконкой и подписью из ключей `ICONS`.
+ * Используется в выборе иконки в настройках Button, Icon, SearchField, SegmentButton
+ * и IconRowGroup и в превью Listbox с иконками.
  */
-export const COMBOBOX_OPTIONS: readonly ComboboxOption[] = Object.freeze(
+export const ICON_OPTIONS: readonly ListboxOption[] = Object.freeze(
   Object.keys(ICONS).map((key) => ({
     icon: getIcon(key as IconKey),
     label: resolveIconLabel(key as IconKey),

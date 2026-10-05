@@ -3,10 +3,10 @@
  * Определяет внешний вид компонента Text.
  *
  * Основные задачи:
- * 1. Типизировать пропсы через `TextStyleProps`, `TextTone`, `TextSizePreset` и `TextAlignPreset`
+ * 1. Типизировать пропсы через `TextStyleProps`, `TextTonePreset`, `TextSizePreset` и `TextAlignPreset`
  * 2. Хранить тоны текста в `TEXT_TONE_PRESETS` и пресеты типографики в `textSizePresets`
  * 3. Предоставить функции `getTextProperties`, `getTextLineHeight`, `getTextToneColor`
- *    и `getEllipsisStyles`, а также перечни `TEXT_TONE_KEYS`, `TEXT_SIZE_PRESET_KEYS`
+ *    и `getEllipsisStyles`, а также перечни `TEXT_TONE_PRESET_KEYS`, `TEXT_SIZE_PRESET_KEYS`
  *    и `TEXT_ALIGN_PRESET_KEYS`
  * 4. Предоставить styled-узел `StyledText`
  *
@@ -14,10 +14,8 @@
  *  - `src/ui/text/index.tsx` — собирает компонент Text и реэкспортирует публичное API
  *  - `@ui/presets` — использует тип `TextSizePreset` для моста `getTextSize`
  *  - `@ui/table/column-sizing` — замеряет ширину колонки по `textSizePresets`
- *  - `@ui/input`, `@ui/table/table-inline-field` — стилизуют нативное поле ввода через
- *    `getTextProperties`
- *  - `@ui/stepper` — стилизует нативное поле ввода через `getTextProperties`
- *    и `getTextToneColor`
+ *  - `@ui/input`, `@ui/search-field`, `@ui/stepper`, `@ui/table/table-inline-field` —
+ *    стилизуют нативное поле ввода через `getTextProperties`
  *  - `@ui/field-error`, `@ui/spinner` — резервируют место под однострочный текст
  *    через `getTextLineHeight`
  *  - `@ui/table/table-cell` — обрезает содержимое ячейки через `getEllipsisStyles`
@@ -32,7 +30,7 @@ import { TONE_PRESETS, type TonePreset } from '@ui/tones';
 
 /**
  * textSizePresets — хранит типографические пресеты текста.
- * Проп `sizePreset` у Text принимает `TextSizePreset` — собственный ряд,
+ * Проп `size` у Text принимает `TextSizePreset` — собственный ряд,
  * отличный от `SizePreset` контролов. Контролы согласуют размер через
  * `getTextSize` из `@ui/presets`, Tag — через `getTagTextSize` с локальным рядом.
  *
@@ -97,7 +95,7 @@ export const TEXT_SIZE_PRESET_KEYS = Object.freeze(
 
 /**
  * DEFAULT_TEXT_SIZE_PRESET — задаёт типографический пресет по умолчанию.
- * Используется, когда вызывающий код не передал проп `sizePreset`.
+ * Используется, когда вызывающий код не передал проп `size`.
  */
 const DEFAULT_TEXT_SIZE_PRESET: TextSizePreset = 'normal';
 
@@ -107,11 +105,11 @@ const DEFAULT_TEXT_SIZE_PRESET: TextSizePreset = 'normal';
  * Используется для нативных `<input>` и `<textarea>`, которые нельзя обернуть
  * в компонент Text.
  *
- * @param sizePreset типографический пресет
+ * @param size типографический пресет
  * @returns CSS-правила, каждое с новой строки
  */
-export function getTextProperties(sizePreset: TextSizePreset): string {
-  const preset = textSizePresets[sizePreset];
+export function getTextProperties(size: TextSizePreset): string {
+  const preset = textSizePresets[size];
 
   return `
     font-size: ${preset.fontSize};
@@ -124,11 +122,11 @@ export function getTextProperties(sizePreset: TextSizePreset): string {
  * getTextLineHeight — возвращает высоту строки для типографического пресета.
  * Используется для резерва места под однострочный Text без захардкоженных значений.
  *
- * @param sizePreset типографический пресет
+ * @param size типографический пресет
  * @returns значение для CSS-свойства `line-height`
  */
-export function getTextLineHeight(sizePreset: TextSizePreset): string {
-  return textSizePresets[sizePreset].lineHeight;
+export function getTextLineHeight(size: TextSizePreset): string {
+  return textSizePresets[size].lineHeight;
 }
 
 /**
@@ -165,7 +163,7 @@ export function getEllipsisStyles(): string {
  * Расширяет канон `TONE_PRESETS` спредом, добавляя тон `muted` для вторичного текста.
  *
  * Соответствие приватно для модуля, доступ к перечню тонов — только через
- * `TEXT_TONE_KEYS`, чтение цвета — через `getTextToneColor`.
+ * `TEXT_TONE_PRESET_KEYS`, чтение цвета — через `getTextToneColor`.
  */
 const TEXT_TONE_PRESETS = {
   ...TONE_PRESETS,
@@ -173,17 +171,17 @@ const TEXT_TONE_PRESETS = {
 } as const satisfies Record<'muted' | TonePreset, keyof ThemeColors | undefined>;
 
 /**
- * TextTone — представляет тоны текста.
+ * TextTonePreset — представляет тоны текста.
  * Включает все канонические тона и дополнительный `muted` для вторичного текста.
  */
-export type TextTone = keyof typeof TEXT_TONE_PRESETS;
+export type TextTonePreset = keyof typeof TEXT_TONE_PRESETS;
 
 /**
- * TEXT_TONE_KEYS — формирует перечень тонов текста из ключей `TEXT_TONE_PRESETS`.
+ * TEXT_TONE_PRESET_KEYS — формирует перечень тонов текста из ключей `TEXT_TONE_PRESETS`.
  * Используется в панелях настроек витрины дизайн-системы: `ToneListbox` принимает его пропом `tones`.
  */
-export const TEXT_TONE_KEYS = Object.freeze(
-  Object.keys(TEXT_TONE_PRESETS) as TextTone[]
+export const TEXT_TONE_PRESET_KEYS = Object.freeze(
+  Object.keys(TEXT_TONE_PRESETS) as TextTonePreset[]
 );
 
 /**
@@ -193,21 +191,23 @@ export const TEXT_TONE_KEYS = Object.freeze(
  * @param tone тон текста
  * @returns ключ цвета темы или `undefined`
  */
-function getTextToneColorKey(tone: TextTone): keyof ThemeColors | undefined {
+function getTextToneColorKey(tone: TextTonePreset): keyof ThemeColors | undefined {
   return TEXT_TONE_PRESETS[tone];
 }
 
 /**
  * getTextToneColor — возвращает цвет темы для указанного тона текста.
  * Для тона по умолчанию возвращает `undefined` — цвет наследуется от родителя.
- * Используется в `getTextStyles` и в нативных полях ввода, которые нельзя
- * обернуть в компонент Text, например в `@ui/stepper`.
+ * Используется в `getTextStyles`.
  *
  * @param theme текущая тема
  * @param tone тон текста
  * @returns CSS-цвет или `undefined`
  */
-export function getTextToneColor(theme: AppTheme, tone: TextTone): string | undefined {
+export function getTextToneColor(
+  theme: AppTheme,
+  tone: TextTonePreset
+): string | undefined {
   const colorKey = getTextToneColorKey(tone);
 
   return colorKey ? theme.colors[colorKey] : undefined;
@@ -220,24 +220,24 @@ export function getTextToneColor(theme: AppTheme, tone: TextTone): string | unde
  * @property align — выравнивание текста
  * @property color — прямое переопределение цвета, приоритетнее `tone`
  * @property ellipsis — включает однострочное обрезание с многоточием
- * @property fontSize — размер шрифта, переопределяет `sizePreset`
- * @property fontWeight — насыщенность шрифта, переопределяет `sizePreset`
+ * @property fontSize — размер шрифта, переопределяет `size`
+ * @property fontWeight — насыщенность шрифта, переопределяет `size`
  * @property italic — включает курсивное начертание
- * @property lineHeight — высота строки, переопределяет `sizePreset`
- * @property sizePreset — типографический пресет
+ * @property lineHeight — высота строки, переопределяет `size`
+ * @property size — типографический пресет
  * @property tone — цвет текста из темы
  * @property whiteSpace — управление переносами
  */
 export type TextStyleProps = LayoutProps & {
-  align?: CSSProperties['textAlign'];
+  align?: TextAlignPreset;
   color?: string;
   ellipsis?: boolean;
   fontSize?: string;
   fontWeight?: CSSProperties['fontWeight'];
   italic?: boolean;
   lineHeight?: CSSProperties['lineHeight'];
-  sizePreset?: TextSizePreset;
-  tone?: TextTone;
+  size?: TextSizePreset;
+  tone?: TextTonePreset;
   whiteSpace?: CSSProperties['whiteSpace'];
 };
 
@@ -253,7 +253,7 @@ const TEXT_PROP_NAMES = new Set<string>([
   'fontWeight',
   'italic',
   'lineHeight',
-  'sizePreset',
+  'size',
   'tone',
   'whiteSpace',
 ]);
@@ -264,7 +264,7 @@ const TEXT_PROP_NAMES = new Set<string>([
  *
  * Как работает:
  * 1. Получает текущую тему через `getTheme`
- * 2. Выбирает пресет по `sizePreset`, подставляя `DEFAULT_TEXT_SIZE_PRESET`,
+ * 2. Выбирает пресет по `size`, подставляя `DEFAULT_TEXT_SIZE_PRESET`,
  *    когда размер не задан, и применяет `font-size`, `font-weight` и `line-height`
  *    через `getTextProperties`
  * 3. Переопределяет типографику прямыми пропсами `fontSize`, `fontWeight`
@@ -290,12 +290,12 @@ function getTextStyles(props: TextStyleProps & { theme: AppTheme }): string {
     fontWeight,
     italic,
     lineHeight,
-    sizePreset = DEFAULT_TEXT_SIZE_PRESET,
+    size = DEFAULT_TEXT_SIZE_PRESET,
     tone,
     whiteSpace,
   } = props;
 
-  const styles: string[] = [getTextProperties(sizePreset)];
+  const styles: string[] = [getTextProperties(size)];
 
   if (fontSize !== undefined) {
     styles.push(`font-size: ${fontSize};`);

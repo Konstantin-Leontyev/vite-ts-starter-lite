@@ -19,15 +19,28 @@
  * 1. Экспортировать компонент FieldLabel
  * 2. Типизировать пропсы через `FieldLabelProps`
  * 3. Фиксировать типографику подписи и корневой элемент `label`
+ * 4. Экспортировать генератор `getFieldLabelRootStyles`
  *
  * Потребители:
- *  - контролы, например Input, Listbox, Combobox, RangeInput, Button, SegmentButton,
+ *  - контролы, например Input, Listbox, RangeInput, Button, SegmentButton,
  *    DateRangeInput и Stepper — рендерят подпись поля
+ *  - styles-файлы Button, Input, SearchField, SegmentButton и Stepper —
+ *    подключают `getFieldLabelRootStyles`:
+ *     - `src/ui/button/button.styles.ts`
+ *     - `src/ui/input/input.styles.ts`
+ *     - `src/ui/search-field/search-field.styles.ts`
+ *     - `src/ui/segment-button/segment-button.styles.ts`
+ *     - `src/ui/stepper/stepper.styles.ts`
  */
 
-import { type ComponentProps, type ReactNode } from 'react';
+import {
+  Text,
+  type TextProps,
+  type TextSizePreset,
+  type TextTonePreset,
+} from '@ui/text';
 
-import { Text, type TextSizePreset, type TextTone } from '@ui/text';
+import { getFieldLabelRootStyles } from './field-label.styles';
 
 /**
  * FIELD_LABEL_SIZE_PRESET — задаёт типографический пресет подписи поля.
@@ -39,21 +52,16 @@ const FIELD_LABEL_SIZE_PRESET: TextSizePreset = 'thin';
  * FIELD_LABEL_TEXT_TONE — задаёт тон текста подписи поля.
  * Подпись поля — вторичный текст, поэтому `muted`.
  */
-const FIELD_LABEL_TEXT_TONE: TextTone = 'muted';
+const FIELD_LABEL_TEXT_TONE: TextTonePreset = 'muted';
 
 /**
  * FieldLabelProps — представляет пропсы компонента FieldLabel.
  *
- * @property children — содержимое подписи. Без `children` подпись не отображается
  * @property htmlFor — id связанного контрола
  */
 type FieldLabelProps = {
-  children?: ReactNode;
   htmlFor?: string;
-} & Omit<
-  ComponentProps<typeof Text>,
-  'as' | 'children' | 'className' | 'htmlFor' | 'sizePreset' | 'style' | 'tone'
->;
+} & Omit<TextProps<'label'>, 'as' | 'className' | 'htmlFor' | 'size' | 'style' | 'tone'>;
 
 /**
  * FieldLabel — отображает подпись поля.
@@ -62,7 +70,7 @@ type FieldLabelProps = {
  * <FieldLabel htmlFor={buttonId}>{label}</FieldLabel>
  * <FieldLabel id={labelId}>{label}</FieldLabel>
  */
-export function FieldLabel({ children, htmlFor, ...rest }: FieldLabelProps) {
+function FieldLabel({ children, htmlFor, ...rest }: FieldLabelProps) {
   if (!children) {
     return null;
   }
@@ -71,7 +79,7 @@ export function FieldLabel({ children, htmlFor, ...rest }: FieldLabelProps) {
     <Text
       as="label"
       htmlFor={htmlFor}
-      sizePreset={FIELD_LABEL_SIZE_PRESET}
+      size={FIELD_LABEL_SIZE_PRESET}
       tone={FIELD_LABEL_TEXT_TONE}
       {...rest}
     >
@@ -79,3 +87,6 @@ export function FieldLabel({ children, htmlFor, ...rest }: FieldLabelProps) {
     </Text>
   );
 }
+
+/* eslint-disable react-refresh/only-export-components -- реэкспорт генератора корня поля */
+export { FieldLabel, getFieldLabelRootStyles };

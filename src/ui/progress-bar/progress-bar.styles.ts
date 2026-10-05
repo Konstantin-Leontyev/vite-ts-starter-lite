@@ -5,7 +5,7 @@
  * Основные задачи:
  * 1. Типизировать пропсы через `ProgressBarStyleProps`
  * 2. Хранить высоту полосы в `progressBarBlockSize`
- * 3. Предоставить функции `clampProgressValue` и `getProgressBarTextSize`
+ * 3. Предоставить функцию `clampProgressValue`
  * 4. Предоставить styled-узлы `StyledProgressBarRoot`, `StyledProgressBar`
  *    и `StyledProgressBarFill`
  *
@@ -17,9 +17,8 @@ import styled from 'styled-components';
 
 import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
 import { MOTION_CONTROL_DURATION, getTransitionStyles } from '@ui/motion';
-import { DEFAULT_SIZE_PRESET, getTextSize, type SizePreset } from '@ui/presets';
+import { DEFAULT_SIZE_PRESET, type SizePreset } from '@ui/presets';
 import { getSpacingValue, type SpacingValue } from '@ui/spacing';
-import { type TextSizePreset } from '@ui/text';
 import { getTheme, type AppTheme } from '@ui/theme';
 import { getToneColor, type TonePreset } from '@ui/tones';
 
@@ -37,22 +36,11 @@ const progressBarBlockSize = {
 /**
  * getProgressBarBlockSize — возвращает CSS-высоту полосы прогресса.
  *
- * @param sizePreset размер из ряда контролов
+ * @param size размер из ряда контролов
  * @returns высота полосы в rem
  */
-function getProgressBarBlockSize(sizePreset: SizePreset): string {
-  return getSpacingValue(progressBarBlockSize[sizePreset]);
-}
-
-/**
- * getProgressBarTextSize — возвращает размер подписи по `sizePreset`.
- * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
- *
- * @param sizePreset размер полосы
- * @returns метка размера текста из `TextSizePreset` для подписи с процентом
- */
-export function getProgressBarTextSize(sizePreset?: SizePreset): TextSizePreset {
-  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
+function getProgressBarBlockSize(size: SizePreset): string {
+  return getSpacingValue(progressBarBlockSize[size]);
 }
 
 /**
@@ -76,12 +64,12 @@ export function clampProgressValue(value: number): number {
 /**
  * ProgressBarStyleProps — представляет пропсы стилизации ProgressBar и layout-пропсы.
  *
- * @property sizePreset — размер полосы
+ * @property size — размер полосы
  * @property tone — семантический тон заливки
  * @property value — доля заполнения от 0 до 1
  */
 export type ProgressBarStyleProps = LayoutProps & {
-  sizePreset?: SizePreset;
+  size?: SizePreset;
   tone?: TonePreset;
   value: number;
 };
@@ -113,14 +101,14 @@ export const StyledProgressBarRoot = styled.div.withConfig({
 /**
  * PROGRESS_BAR_PROP_NAMES — хранит имена пропсов стилизации полосы ProgressBar.
  */
-const PROGRESS_BAR_PROP_NAMES = new Set<string>(['sizePreset']);
+const PROGRESS_BAR_PROP_NAMES = new Set<string>(['size']);
 
 /**
  * getProgressBarStyles — возвращает CSS-правила для узла `StyledProgressBar`:
  * высоту, скругление и цвет дорожки.
  *
  * Как работает:
- * 1. Берёт тему и подставляет дефолт `sizePreset`
+ * 1. Берёт тему и подставляет дефолт `size`
  * 2. Собирает `block-size` и `border-radius` через `getProgressBarBlockSize`
  *    и цвет дорожки `theme.colors.border`
  *
@@ -128,11 +116,11 @@ const PROGRESS_BAR_PROP_NAMES = new Set<string>(['sizePreset']);
  * @returns CSS-правила, каждое с новой строки
  */
 function getProgressBarStyles(
-  props: Pick<ProgressBarStyleProps, 'sizePreset'> & { theme: AppTheme }
+  props: Pick<ProgressBarStyleProps, 'size'> & { theme: AppTheme }
 ): string {
   const theme = getTheme(props);
-  const { sizePreset = DEFAULT_SIZE_PRESET } = props;
-  const blockSize = getProgressBarBlockSize(sizePreset);
+  const { size = DEFAULT_SIZE_PRESET } = props;
+  const blockSize = getProgressBarBlockSize(size);
 
   return `
     block-size: ${blockSize};
@@ -143,7 +131,7 @@ function getProgressBarStyles(
 
 /**
  * StyledProgressBar — задаёт полосу прогресса компонента ProgressBar.
- * Базируется на `<div>` и принимает проп `sizePreset`.
+ * Базируется на `<div>` и принимает проп `size`.
  *
  * Встроенные стили:
  *  - `display: grid` — раскладка по дефолту проекта
@@ -156,7 +144,7 @@ function getProgressBarStyles(
  */
 export const StyledProgressBar = styled.div.withConfig({
   shouldForwardProp: (prop) => !PROGRESS_BAR_PROP_NAMES.has(prop),
-})<Pick<ProgressBarStyleProps, 'sizePreset'>>`
+})<Pick<ProgressBarStyleProps, 'size'>>`
   display: grid;
   flex-grow: 1;
   min-inline-size: 0;

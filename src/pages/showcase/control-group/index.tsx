@@ -1,6 +1,6 @@
 /**
  * Файл: `src/pages/showcase/control-group/index.tsx`
- * Предоставляет компонент ControlGroup для настройки подписи и осей размера
+ * Предоставляет компонент ControlGroup для настройки подписи, размера
  * и формы контрола в витрине дизайн-системы.
  * Используется только в витрине: в продуктовый код и `@ui/` не входит.
  *
@@ -10,29 +10,28 @@
  *  - обработчик изменения формы через проп `onShapeChange`
  *  - обработчик изменения размера через проп `onSizeChange`
  *  - форму контрола через проп `shape`
- *  - размер контрола через проп `sizePreset`
+ *  - размер контрола через проп `size`
  *
  * Основные задачи:
  * 1. Экспортировать компонент ControlGroup
  * 2. Типизировать пропсы через `ControlGroupProps`
- * 3. Рендерить единый блок настроек контрола в порядке: подпись, размер и форма —
- *    `Label:` → `Size:` → `Shape:`. Порядок `Size:` → `Shape:` → `Label:` запрещён
+ * 3. Рендерить единый блок настроек контрола в порядке: подпись через TextGroup
+ *    с `labelPrefix="Label"`, затем `Size:` и `Shape:`. Порядок `Size:` → `Shape:` →
+ *    `Label:` запрещён
  *
  * Потребители:
- *  - панели настроек витрины — настраивают подпись и оси контрола:
+ *  - панели настроек витрины — настраивают подпись, размер и форму контрола:
  *     - `src/pages/showcase/input-settings/index.tsx`
  *     - `src/pages/showcase/listbox-settings/index.tsx`
  *     - `src/pages/showcase/range-input-settings/index.tsx`
- *     - `src/pages/showcase/combobox-settings/index.tsx`
  *     - `src/pages/showcase/button-settings/index.tsx`
  *     - `src/pages/showcase/date-range-input-settings/index.tsx`
  *     - `src/pages/showcase/segment-button-settings/index.tsx`
  *     - `src/pages/showcase/stepper-settings/index.tsx`
+ *     - `src/pages/showcase/search-field-settings/index.tsx`
+ *     - `src/pages/showcase/locale-picker-settings/index.tsx`
  */
 
-import { type ChangeEvent } from 'react';
-
-import { Input } from '@ui/input';
 import {
   SHAPE_PRESET_KEYS,
   SIZE_PRESET_KEYS,
@@ -42,6 +41,7 @@ import {
 
 import { ShapeListbox } from '../shape-listbox';
 import { SizeListbox } from '../size-listbox';
+import { TextGroup } from '../text-group';
 
 /**
  * ControlGroupProps — представляет пропсы компонента ControlGroup.
@@ -51,7 +51,7 @@ import { SizeListbox } from '../size-listbox';
  * @property onShapeChange — обработчик изменения формы
  * @property onSizeChange — обработчик изменения размера
  * @property shape — текущая форма контрола
- * @property sizePreset — текущий размер контрола
+ * @property size — текущий размер контрола
  */
 type ControlGroupProps = {
   label: string;
@@ -59,7 +59,7 @@ type ControlGroupProps = {
   onShapeChange: (shape: ShapePreset) => void;
   onSizeChange: (size: SizePreset) => void;
   shape: ShapePreset;
-  sizePreset: SizePreset;
+  size: SizePreset;
 };
 
 /**
@@ -70,10 +70,10 @@ type ControlGroupProps = {
  * <ControlGroup
  *   label={state.label}
  *   shape={state.shape}
- *   sizePreset={state.sizePreset}
+ *   size={state.size}
  *   onLabelChange={(label) => onChange('label', label)}
  *   onShapeChange={(shape) => onChange('shape', shape)}
- *   onSizeChange={(size) => onChange('sizePreset', size)}
+ *   onSizeChange={(size) => onChange('size', size)}
  * />
  */
 export function ControlGroup({
@@ -82,22 +82,24 @@ export function ControlGroup({
   onShapeChange,
   onSizeChange,
   shape,
-  sizePreset,
+  size,
 }: ControlGroupProps) {
   return (
     <>
-      <Input
-        label="Label:"
-        value={label}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onLabelChange(event.target.value)
-        }
+      <TextGroup
+        contents={[
+          {
+            value: label,
+            onChange: onLabelChange,
+          },
+        ]}
+        labelPrefix="Label"
       />
 
       <SizeListbox
         label="Size:"
         sizes={SIZE_PRESET_KEYS}
-        value={sizePreset}
+        value={size}
         onChange={onSizeChange}
       />
 

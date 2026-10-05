@@ -1,8 +1,9 @@
 /**
  * Файл: `src/pages/showcase/icon-settings/index.tsx`
  * Определяет панель настроек компонента Icon в витрине дизайн-системы.
- * Содержит контролы для изменения размера, формы, иконки и её тонов, отступа
- * окна, рамки, тени, hover и состояния `disabled` в реальном времени.
+ * Содержит контролы для изменения размера, формы, рамки, иконки и её тонов,
+ * отступа окна, роли `as`, hover, а при `as="button"` — состояний `active`
+ * и `disabled` в реальном времени.
  *
  * Основные задачи:
  * 1. Типизировать состояние витрины через `IconWidgetState`
@@ -23,37 +24,20 @@ import {
   type IconShapePreset,
   type IconSizePreset,
 } from '@ui/icon';
+import { Listbox, type ListboxOption } from '@ui/listbox';
 import { type SpacingValue } from '@ui/spacing';
 import { type TonePreset } from '@ui/tones';
 
 import { BorderGroup } from '../border-group';
 import { IconGroup } from '../icon-group';
 import { ShapeListbox } from '../shape-listbox';
-import { COMBOBOX_OPTIONS, type IconKey } from '../showcase-icon-options';
+import {
+  ICON_OPTIONS,
+  resolveIconPaddingSizePreset,
+  type IconKey,
+} from '../showcase-icon-options';
 import { StyledSettingsForm } from '../showcase.styles';
 import { SizeListbox } from '../size-listbox';
-
-/**
- * resolveIconPaddingSizePreset — возвращает ключ размерного ряда под текущий `padding`.
- * Если отступ совпадает с мостом от `sizePreset` — возвращает его.
- * Иначе берёт первый ключ ряда, у которого `getIconPadding` даёт то же значение.
- *
- * @param padding текущий отступ окна Icon
- * @param sizePreset размер окна Icon
- * @returns ключ ряда для контрола отступа окна Icon
- */
-function resolveIconPaddingSizePreset(
-  padding: SpacingValue,
-  sizePreset: IconSizePreset
-): IconSizePreset {
-  if (getIconPadding(sizePreset) === padding) {
-    return sizePreset;
-  }
-
-  return (
-    ICON_SIZE_PRESET_KEYS.find((key) => getIconPadding(key) === padding) ?? sizePreset
-  );
-}
 
 /**
  * IconWidgetState — представляет состояние настроек компонента Icon в витрине дизайн-системы.
@@ -61,20 +45,23 @@ function resolveIconPaddingSizePreset(
  * `iconKey` выбирает иконку для `children` в превью.
  * Используется для синхронизации значений между панелью управления и демонстрационным Icon.
  *
+ * @property active — включает зафиксированное нажатое состояние
+ * @property as — корневой тег окна или действия
  * @property borderTone — тон рамки
  * @property disabled — включает недоступное состояние
  * @property iconFill — тон глифа иконки
  * @property iconKey — витринный ключ выбора иконки для превью
  * @property iconTone — тон заливки окна
- * @property padding — отступ окна Icon. При смене `sizePreset` синхронизируется
- *   мостом `getIconPadding`
+ * @property padding — отступ окна Icon
  * @property shape — форма окна
  * @property showBorder — включает рамку
  * @property showHover — включает канал hover
  * @property showShadow — включает тень при включённой рамке
- * @property sizePreset — размер окна
+ * @property size — размер окна
  */
 export type IconWidgetState = {
+  active: boolean;
+  as: 'button' | 'span';
   borderTone: TonePreset;
   disabled: boolean;
   iconFill: TonePreset;
@@ -85,8 +72,18 @@ export type IconWidgetState = {
   showBorder: boolean;
   showHover: boolean;
   showShadow: boolean;
-  sizePreset: IconSizePreset;
+  size: IconSizePreset;
 };
+
+/**
+ * ICON_TYPE_OPTIONS — задаёт опции листбокса роли Icon.
+ * Значение опции — проп `as`: `button` для действия, `span` для окна.
+ * Используется в `Listbox` поля Type внутри IconSettings.
+ */
+const ICON_TYPE_OPTIONS: ListboxOption[] = [
+  { label: 'Button', value: 'button' },
+  { label: 'Icon', value: 'span' },
+];
 
 /**
  * IconSettingsProps — представляет пропсы компонента IconSettings.
@@ -111,9 +108,9 @@ export function IconSettings({ onChange, state }: IconSettingsProps) {
       <SizeListbox
         label="Size:"
         sizes={ICON_SIZE_PRESET_KEYS}
-        value={state.sizePreset}
+        value={state.size}
         onChange={(size) => {
-          onChange('sizePreset', size);
+          onChange('size', size);
           onChange('padding', getIconPadding(size));
         }}
       />
@@ -125,11 +122,19 @@ export function IconSettings({ onChange, state }: IconSettingsProps) {
         onChange={(shape) => onChange('shape', shape)}
       />
 
+      <BorderGroup
+        borderTone={state.borderTone}
+        showBorder={state.showBorder}
+        showShadow={state.showShadow}
+        onBorderToneChange={(tone) => onChange('borderTone', tone)}
+        onShowBorderChange={(show) => onChange('showBorder', show)}
+        onShowShadowChange={(show) => onChange('showShadow', show)}
+      />
+
       <IconGroup
         fill={state.iconFill}
-        iconOptions={COMBOBOX_OPTIONS}
+        iconOptions={ICON_OPTIONS}
         iconValue={state.iconKey}
-        labelPrefix=""
         tone={state.iconTone}
         onFillChange={(tone) => onChange('iconFill', tone)}
         onIconChange={(value) => onChange('iconKey', value as IconKey)}
@@ -139,17 +144,15 @@ export function IconSettings({ onChange, state }: IconSettingsProps) {
       <SizeListbox
         label="Padding:"
         sizes={ICON_SIZE_PRESET_KEYS}
-        value={resolveIconPaddingSizePreset(state.padding, state.sizePreset)}
+        value={resolveIconPaddingSizePreset(state.padding, state.size)}
         onChange={(size) => onChange('padding', getIconPadding(size))}
       />
 
-      <BorderGroup
-        borderTone={state.borderTone}
-        showBorder={state.showBorder}
-        showShadow={state.showShadow}
-        onBorderToneChange={(tone) => onChange('borderTone', tone)}
-        onShowBorderChange={(show) => onChange('showBorder', show)}
-        onShowShadowChange={(show) => onChange('showShadow', show)}
+      <Listbox
+        label="Type:"
+        options={ICON_TYPE_OPTIONS}
+        value={state.as}
+        onChange={(value) => onChange('as', value as IconWidgetState['as'])}
       />
 
       <Checkbox
@@ -161,14 +164,27 @@ export function IconSettings({ onChange, state }: IconSettingsProps) {
         Show hover
       </Checkbox>
 
-      <Checkbox
-        checked={state.disabled}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('disabled', event.target.checked)
-        }
-      >
-        Disabled
-      </Checkbox>
+      {state.as === 'button' && (
+        <>
+          <Checkbox
+            checked={state.active}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              onChange('active', event.target.checked)
+            }
+          >
+            Active
+          </Checkbox>
+
+          <Checkbox
+            checked={state.disabled}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              onChange('disabled', event.target.checked)
+            }
+          >
+            Disabled
+          </Checkbox>
+        </>
+      )}
     </StyledSettingsForm>
   );
 }

@@ -27,12 +27,13 @@
  *     - `src/pages/showcase/switch-settings/index.tsx`
  *     - `src/pages/showcase/tag-settings/index.tsx`
  *     - `src/pages/showcase/text-group/index.tsx`
- *     - `src/pages/showcase/title-group/index.tsx`
  *     - `src/pages/showcase/toast-settings/index.tsx`
  */
 
-import { Listbox, type ListboxOption } from '@ui/listbox';
+import { Listbox } from '@ui/listbox';
 import { DEFAULT_TONE, type TonePreset } from '@ui/tones';
+
+import { getListboxOptions } from '../showcase-listbox-options';
 
 /**
  * resolveAvailableTones — возвращает перечень допустимых тонов из переданного списка.
@@ -57,21 +58,6 @@ function resolveAvailableTones<Tone extends string>(
   }
 
   return tones.filter((tone) => tone !== excludeTone || tone === DEFAULT_TONE);
-}
-
-/**
- * getToneListboxOptions — преобразует перечень тонов в опции Listbox.
- *
- * @param tones исходный перечень тонов
- * @returns опции для Listbox
- */
-function getToneListboxOptions<Tone extends string>(
-  tones: readonly Tone[]
-): ListboxOption[] {
-  return tones.map((tone) => ({
-    label: tone,
-    value: tone,
-  }));
 }
 
 /**
@@ -101,7 +87,7 @@ function resolveToneListboxValue<Tone extends string>(
  * @property label — текст подписи над листбоксом
  * @property onChange — обработчик изменения выбранного тона
  * @property tones — перечень допустимых тонов из настраиваемого компонента,
- *   например `TONE_PRESET_KEYS` или `TEXT_TONE_KEYS`
+ *   например `TONE_PRESET_KEYS` или `TEXT_TONE_PRESET_KEYS`
  * @property value — текущий выбранный тон, по умолчанию `neutral`.
  *   Панели передают состояние как есть, не дублируя это умолчание запасными значениями
  */
@@ -125,7 +111,7 @@ type ToneListboxProps<Tone extends string> = {
  * />
  * <ToneListbox
  *   label="Text tone:"
- *   tones={TEXT_TONE_KEYS}
+ *   tones={TEXT_TONE_PRESET_KEYS}
  *   excludeTone="primary"
  *   value={textTone}
  *   onChange={setTextTone}
@@ -143,7 +129,7 @@ export function ToneListbox<Tone extends string = TonePreset>({
   return (
     <Listbox
       label={label}
-      options={getToneListboxOptions(availableTones)}
+      options={getListboxOptions(availableTones)}
       value={resolveToneListboxValue(value, availableTones)}
       onChange={(nextTone) => onChange(nextTone as Tone)}
     />

@@ -4,9 +4,8 @@
  *
  * Основные задачи:
  * 1. Типизировать пропсы через `SegmentButtonStyleProps`
- * 2. Предоставить функцию `getSegmentButtonTextSize`
- * 3. Предоставить styled-узлы `StyledSegmentButtonRoot` и `StyledSegmentButton`
- * 4. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
+ * 2. Предоставить styled-узлы `StyledSegmentButtonRoot` и `StyledSegmentButton`
+ * 3. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
  *
  * Потребители:
  *  - `src/ui/segment-button/index.tsx` — собирает компонент SegmentButton и реэкспортирует
@@ -16,102 +15,84 @@
 import styled from 'styled-components';
 
 import { getBorderStyles } from '@ui/border';
-import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
+import { getFieldLabelRootStyles } from '@ui/field-label';
+import { LAYOUT_PROP_NAMES, type LayoutProps } from '@ui/layout';
 import { getOutlineStyles } from '@ui/outline';
 import {
   DEFAULT_SHAPE_PRESET,
   DEFAULT_SIZE_PRESET,
   getMinBlockSize,
-  getTextSize,
   resolveBlockRadius,
   type ShapePreset,
   type SizePreset,
 } from '@ui/presets';
-import { getSpacingValue } from '@ui/spacing';
-import { type TextSizePreset } from '@ui/text';
 import { getTheme, type AppTheme } from '@ui/theme';
+import { type TonePreset } from '@ui/tones';
 
 export { splitLayoutProps } from '@ui/layout';
 
 /**
- * getSegmentButtonTextSize — возвращает размер текста сегмента по `sizePreset`.
- * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
- *
- * @param sizePreset размер сегментной кнопки
- * @returns метка размера текста из `TextSizePreset` для текста сегмента
- */
-export function getSegmentButtonTextSize(sizePreset?: SizePreset): TextSizePreset {
-  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
-}
-
-/**
  * SegmentButtonStyleProps — представляет пропсы стилизации SegmentButton и layout-пропсы.
  *
+ * @property borderTone — тон рамки
  * @property shape — форма оболочки ряда
- * @property sizePreset — размер компонента
+ * @property size — размер компонента
  */
 export type SegmentButtonStyleProps = LayoutProps & {
+  borderTone?: TonePreset;
   shape?: ShapePreset;
-  sizePreset?: SizePreset;
+  size?: SizePreset;
 };
 
 /**
  * StyledSegmentButtonRoot — задаёт корневой узел компонента SegmentButton.
  * Базируется на `<div>` и поддерживает layout-пропсы.
  *
- * Встроенные стили:
- *  - `display: grid` — вертикальный поток подписи и оболочки
- *  - `gap` — отступ между подписью и оболочкой
- *  - `inline-size: 100%` — занимает ширину родителя
- *  - `min-inline-size: 0` — предотвращает переполнение
- *
  * Генерация стилей:
- *  - `getLayoutStyles` — отступы, позиционирование, размеры
+ *  - `getFieldLabelRootStyles` — колонка подписи и оболочки, layout-пропсы
  */
 export const StyledSegmentButtonRoot = styled.div.withConfig({
   shouldForwardProp: (prop) => !LAYOUT_PROP_NAMES.has(prop),
 })<LayoutProps>`
-  display: grid;
-  gap: ${getSpacingValue(8)};
-  inline-size: 100%;
-  min-inline-size: 0;
-  ${(props) => getLayoutStyles(props)}
+  ${(props) => getFieldLabelRootStyles(props)}
 `;
 
 /**
  * SEGMENT_BUTTON_PROP_NAMES — хранит имена пропсов стилизации оболочки ряда.
  */
-const SEGMENT_BUTTON_PROP_NAMES = new Set<string>(['shape', 'sizePreset']);
+const SEGMENT_BUTTON_PROP_NAMES = new Set<string>(['borderTone', 'shape', 'size']);
 
 /**
  * getSegmentButtonStyles — возвращает CSS-правила для узла `StyledSegmentButton`:
  * высоту, заливку, рамку с тенью через `getBorderStyles`, радиус по `shape`
- * и фокус-контур ряда на `:focus-within`.
+ * и фокус-контур ряда на `&:has(:focus-visible)`.
  *
  * Как работает:
- * 1. Берёт тему и подставляет дефолты `shape` и `sizePreset`
+ * 1. Берёт тему и подставляет дефолты `shape` и `size`
  * 2. Собирает `min-block-size` через `getMinBlockSize`, заливку `surface`,
  *    рамку с тенью через `getBorderStyles` и `border-radius` через
  *    `resolveBlockRadius` по форме и высоте
- * 3. На `:focus-within` рисует фокус-контур через `getOutlineStyles` — общая
- *    обводка ряда, пока фокус на сегменте. Сам сегмент контур не рисует
+ * 3. На `&:has(:focus-visible)` рисует фокус-контур через `getOutlineStyles` —
+ *    общая обводка ряда, пока фокус на сегменте виден. Сам сегмент контур не рисует
  *
  * @param props пропсы стилизации оболочки и тема
  * @returns CSS-правила, каждое с новой строки
  */
 function getSegmentButtonStyles(
-  props: Pick<SegmentButtonStyleProps, 'shape' | 'sizePreset'> & { theme: AppTheme }
+  props: Pick<SegmentButtonStyleProps, 'borderTone' | 'shape' | 'size'> & {
+    theme: AppTheme;
+  }
 ): string {
   const theme = getTheme(props);
-  const { shape = DEFAULT_SHAPE_PRESET, sizePreset = DEFAULT_SIZE_PRESET } = props;
-  const minBlockSize = getMinBlockSize(sizePreset);
+  const { borderTone, shape = DEFAULT_SHAPE_PRESET, size = DEFAULT_SIZE_PRESET } = props;
+  const minBlockSize = getMinBlockSize(size);
 
   return `
     min-block-size: ${minBlockSize};
     background-color: ${theme.colors.surface};
-    ${getBorderStyles(theme)}
+    ${getBorderStyles(theme, undefined, undefined, borderTone)}
     border-radius: ${resolveBlockRadius(shape, minBlockSize)};
-    &:focus-within {
+    &:has(:focus-visible) {
       ${getOutlineStyles(theme.colors.focusOutline)}
     }
   `;
@@ -119,7 +100,7 @@ function getSegmentButtonStyles(
 
 /**
  * StyledSegmentButton — задаёт оболочку ряда сегментов компонента SegmentButton.
- * Базируется на `<div>` и принимает пропсы `shape` и `sizePreset`.
+ * Базируется на `<div>` и принимает пропсы `borderTone`, `shape` и `size`.
  *
  * Встроенные стили:
  *  - `display: grid` — оболочка над рядом сегментов
@@ -129,11 +110,11 @@ function getSegmentButtonStyles(
  *
  * Генерация стилей:
  *  - `getSegmentButtonStyles` — высота, заливка, рамка с тенью через `getBorderStyles`,
- *    радиус и фокус-контур `:focus-within`
+ *    радиус и фокус-контур `&:has(:focus-visible)`
  */
 export const StyledSegmentButton = styled.div.withConfig({
   shouldForwardProp: (prop) => !SEGMENT_BUTTON_PROP_NAMES.has(prop),
-})<Pick<SegmentButtonStyleProps, 'shape' | 'sizePreset'>>`
+})<Pick<SegmentButtonStyleProps, 'borderTone' | 'shape' | 'size'>>`
   display: grid;
   inline-size: 100%;
   min-inline-size: 0;

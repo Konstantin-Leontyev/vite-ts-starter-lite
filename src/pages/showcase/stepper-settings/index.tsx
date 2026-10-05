@@ -2,7 +2,7 @@
  * Файл: `src/pages/showcase/stepper-settings/index.tsx`
  * Определяет панель настроек компонента Stepper в витрине дизайн-системы.
  * Содержит контролы для изменения подписи, размера, формы, минимума, максимума, шага,
- * суффикса, значения, его текстовых настроек и недоступного состояния в реальном времени.
+ * суффикса и недоступного состояния в реальном времени.
  *
  * Основные задачи:
  * 1. Типизировать состояние витрины через `StepperWidgetState`
@@ -17,12 +17,10 @@ import { type ChangeEvent } from 'react';
 import { Checkbox } from '@ui/checkbox';
 import { Input } from '@ui/input';
 import { type ShapePreset, type SizePreset } from '@ui/presets';
-import { Stepper, getStepperTextSize } from '@ui/stepper';
-import { type TextAlignPreset, type TextSizePreset, type TextTone } from '@ui/text';
+import { Stepper } from '@ui/stepper';
 
 import { ControlGroup } from '../control-group';
 import { StyledSettingsForm } from '../showcase.styles';
-import { TextGroup } from '../text-group';
 
 /**
  * StepperWidgetState — представляет состояние настроек компонента Stepper в витрине дизайн-системы.
@@ -34,13 +32,9 @@ import { TextGroup } from '../text-group';
  * @property max — верхняя граница значения
  * @property min — нижняя граница значения
  * @property shape — форма поля
- * @property sizePreset — размер компонента
+ * @property size — размер компонента
  * @property step — шаг изменения значения
  * @property suffix — подпись единицы внутри поля
- * @property textAlign — горизонтальное выравнивание пары «значение + суффикс»
- * @property textItalic — включает курсив значения и суффикса
- * @property textSize — размер значения и суффикса
- * @property textTone — тон значения и суффикса
  * @property value — числовое значение счётчика
  */
 export type StepperWidgetState = {
@@ -49,13 +43,9 @@ export type StepperWidgetState = {
   max?: number;
   min?: number;
   shape: ShapePreset;
-  sizePreset: SizePreset;
+  size: SizePreset;
   step: number;
   suffix: string;
-  textAlign?: TextAlignPreset;
-  textItalic: boolean;
-  textSize: TextSizePreset;
-  textTone?: TextTone;
   value: number;
 };
 
@@ -80,55 +70,39 @@ type StepperSettingsProps = {
  * <StepperSettings state={stepper} onChange={updateStepper} />
  */
 export function StepperSettings({ onChange, state }: StepperSettingsProps) {
+  /**
+   * handleOptionalBoundChange — записывает границу Min или Max из ввода поля.
+   * Пустая строка снимает границу. Нечисловой ввод границу не меняет.
+   *
+   * @param key ключ границы в состоянии витрины
+   * @param event событие поля ввода
+   */
+  function handleOptionalBoundChange(
+    key: 'max' | 'min',
+    event: ChangeEvent<HTMLInputElement>
+  ): void {
+    const rawValue = event.target.value;
+    const parsed = Number(rawValue);
+
+    if (rawValue.trim() === '') {
+      onChange(key, undefined);
+      return;
+    }
+
+    if (Number.isFinite(parsed)) {
+      onChange(key, parsed);
+    }
+  }
+
   return (
     <StyledSettingsForm onSubmit={(event) => event.preventDefault()}>
       <ControlGroup
         label={state.label}
         shape={state.shape}
-        sizePreset={state.sizePreset}
+        size={state.size}
         onLabelChange={(label) => onChange('label', label)}
         onShapeChange={(shape) => onChange('shape', shape)}
-        onSizeChange={(size) => {
-          onChange('sizePreset', size);
-          onChange('textSize', getStepperTextSize(size));
-        }}
-      />
-
-      <Input
-        inputMode="numeric"
-        label="Min:"
-        value={state.min === undefined ? '' : String(state.min)}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          const parsed = Number(event.target.value);
-
-          if (event.target.value.trim() === '') {
-            onChange('min', undefined);
-          } else if (Number.isFinite(parsed)) {
-            onChange('min', parsed);
-          }
-        }}
-      />
-
-      <Input
-        inputMode="numeric"
-        label="Max:"
-        value={state.max === undefined ? '' : String(state.max)}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          const parsed = Number(event.target.value);
-
-          if (event.target.value.trim() === '') {
-            onChange('max', undefined);
-          } else if (Number.isFinite(parsed)) {
-            onChange('max', parsed);
-          }
-        }}
-      />
-
-      <Stepper
-        label="Step:"
-        min={1}
-        value={state.step}
-        onChange={(value) => onChange('step', value)}
+        onSizeChange={(size) => onChange('size', size)}
       />
 
       <Input
@@ -137,34 +111,34 @@ export function StepperSettings({ onChange, state }: StepperSettingsProps) {
         onChange={(event: ChangeEvent<HTMLInputElement>) =>
           onChange('suffix', event.target.value)
         }
+        onClear={() => onChange('suffix', '')}
       />
 
-      <TextGroup
-        align={state.textAlign}
-        contents={[
-          {
-            value: String(state.value),
-            onChange: (nextValue) => {
-              const parsed = Number(nextValue);
+      <Input
+        inputMode="numeric"
+        label="Min:"
+        value={state.min === undefined ? '' : String(state.min)}
+        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+          handleOptionalBoundChange('min', event)
+        }
+        onClear={() => onChange('min', undefined)}
+      />
 
-              if (nextValue.trim() !== '' && Number.isFinite(parsed)) {
-                onChange('value', parsed);
-              }
-            },
-          },
-        ]}
-        italic={state.textItalic}
-        labelPrefix="Value"
-        size={state.textSize}
-        tones={[
-          {
-            value: state.textTone,
-            onChange: (tone) => onChange('textTone', tone),
-          },
-        ]}
-        onAlignChange={(align) => onChange('textAlign', align)}
-        onItalicChange={(value) => onChange('textItalic', value)}
-        onSizeChange={(size) => onChange('textSize', size)}
+      <Input
+        inputMode="numeric"
+        label="Max:"
+        value={state.max === undefined ? '' : String(state.max)}
+        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+          handleOptionalBoundChange('max', event)
+        }
+        onClear={() => onChange('max', undefined)}
+      />
+
+      <Stepper
+        label="Step:"
+        min={1}
+        value={state.step}
+        onChange={(value) => onChange('step', value)}
       />
 
       <Checkbox

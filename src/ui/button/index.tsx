@@ -4,14 +4,13 @@
  *
  * Поддерживает:
  *  - layout-пропсы: отступы, позиционирование, размеры
- *  - размерный ряд через проп `sizePreset`
+ *  - размерный ряд через проп `size`
  *  - семантический тон через проп `tone`
  *  - форму через проп `shape`
- *  - содержимое через `children`
- *  - подпись над кнопкой через проп `label`
+ *  - тон рамки через проп `borderTone`
+ *  - содержимое лейбла через `children`
  *  - тон лейбла через проп `textTone`
- *  - размер лейбла через проп `textSize`
- *  - курсив лейбла через проп `textItalic`
+ *  - подпись над кнопкой через проп `label`
  *  - иконку через проп `icon`
  *  - позицию иконки через проп `iconPosition`
  *  - тон секции иконки через проп `iconTone`
@@ -21,7 +20,7 @@
  * Основные задачи:
  * 1. Экспортировать компонент Button
  * 2. Типизировать пропсы через `ButtonProps`
- * 3. Реэкспортировать мост размера текста `getButtonTextSize`
+ * 3. Экспортировать тип `ButtonIconProps`
  *
  * Потребители:
  *  - контролы, например RangeInput — рендерят кнопки действий внутри себя
@@ -32,14 +31,20 @@
 import { useId, type ComponentPropsWithRef, type ReactNode } from 'react';
 
 import { FieldLabel } from '@ui/field-label';
-import { DEFAULT_ICON_POSITION, Icon, type IconPosition } from '@ui/icon';
-import { Text, type TextSizePreset, type TextTone } from '@ui/text';
+import {
+  DEFAULT_ICON_POSITION,
+  Icon,
+  resolveIconShape,
+  type IconPosition,
+} from '@ui/icon';
+import { getTextSize } from '@ui/presets';
+import { Text, type TextTonePreset } from '@ui/text';
 import { type TonePreset } from '@ui/tones';
 
 import {
   StyledButton,
+  StyledButtonLabel,
   StyledButtonRoot,
-  getButtonTextSize,
   splitLayoutProps,
   type ButtonStyleProps,
 } from './button.styles';
@@ -51,27 +56,41 @@ import {
 const DEFAULT_BUTTON_TYPE = 'button';
 
 /**
- * ButtonProps — представляет пропсы компонента Button.
+ * ButtonIconProps — представляет пропсы иконки Button.
+ * Поля иконки допустимы только вместе с `icon`.
  *
- * @property children — содержимое лейбла
  * @property icon — svg иконки действия
  * @property iconFill — тон глифа иконки при нейтральном `iconTone`
  * @property iconPosition — позиция иконки относительно лейбла
+ * @property iconTone — тон секции иконки
+ */
+type ButtonIconProps =
+  | {
+      icon: ReactNode;
+      iconFill?: TonePreset;
+      iconPosition?: IconPosition;
+      iconTone?: TonePreset;
+    }
+  | {
+      icon?: never;
+      iconFill?: never;
+      iconPosition?: never;
+      iconTone?: never;
+    };
+
+/**
+ * ButtonProps — представляет пропсы компонента Button.
+ *
+ * @property children — содержимое лейбла
  * @property label — подпись над кнопкой
- * @property textItalic — включает курсив лейбла
- * @property textSize — размер лейбла
  * @property textTone — тон лейбла
  */
 type ButtonProps = {
   children: ReactNode;
-  icon?: ReactNode;
-  iconFill?: TonePreset;
-  iconPosition?: IconPosition;
   label?: string;
-  textItalic?: boolean;
-  textSize?: TextSizePreset;
-  textTone?: TextTone;
-} & ButtonStyleProps &
+  textTone?: TextTonePreset;
+} & ButtonIconProps &
+  Omit<ButtonStyleProps, 'iconTone'> &
   Omit<ComponentPropsWithRef<'button'>, 'className' | 'style' | keyof ButtonStyleProps>;
 
 /**
@@ -84,7 +103,7 @@ type ButtonProps = {
  * <Button
  *   icon={<SettingsIcon />}
  *   iconPosition="start"
- *   sizePreset="small"
+ *   size="small"
  *   tone="danger"
  *   onClick={handleBulkDelete}
  * >
@@ -99,9 +118,8 @@ export function Button({
   iconTone,
   id,
   label,
-  sizePreset,
-  textItalic,
-  textSize,
+  shape,
+  size,
   textTone,
   tone,
   type = DEFAULT_BUTTON_TYPE,
@@ -111,6 +129,7 @@ export function Button({
   const fallbackId = useId();
   const buttonId = id ?? fallbackId;
   const hasIcon = Boolean(icon);
+  const iconShape = resolveIconShape(shape);
 
   const iconNode = hasIcon && (
     <Icon
@@ -118,10 +137,11 @@ export function Button({
       iconFill={iconFill}
       iconTone={iconTone}
       interactive
+      shape={iconShape}
       showBorder
       showHover={false}
       showShadow={false}
-      sizePreset={sizePreset}
+      size={size}
     >
       {icon}
     </Icon>
@@ -134,27 +154,32 @@ export function Button({
         hasIcon={hasIcon}
         iconTone={iconTone}
         id={buttonId}
-        sizePreset={sizePreset}
+        shape={shape}
+        size={size}
         tone={tone}
         type={type}
         {...restProps}
       >
         {iconPosition === 'start' && iconNode}
-        <Text
-          align="center"
-          data-slot="label"
-          ellipsis
-          italic={textItalic}
-          sizePreset={textSize ?? getButtonTextSize(sizePreset)}
-          tone={textTone}
-        >
-          {children}
-        </Text>
+        {hasIcon ? (
+          <StyledButtonLabel
+            align="center"
+            controlSize={size}
+            ellipsis
+            size={getTextSize(size)}
+            tone={textTone}
+          >
+            {children}
+          </StyledButtonLabel>
+        ) : (
+          <Text align="center" ellipsis size={getTextSize(size)} tone={textTone}>
+            {children}
+          </Text>
+        )}
         {iconPosition === 'end' && iconNode}
       </StyledButton>
     </StyledButtonRoot>
   );
 }
 
-/* eslint-disable react-refresh/only-export-components -- реэкспорт моста размера текста */
-export { getButtonTextSize };
+export { type ButtonIconProps };

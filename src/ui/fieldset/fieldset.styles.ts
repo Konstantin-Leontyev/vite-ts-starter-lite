@@ -3,9 +3,9 @@
  * Определяет внешний вид компонента Fieldset.
  *
  * Основные задачи:
- * 1. Типизировать пропсы через `FieldsetStyleProps` и тон рамки через `FieldsetBorderTone`
+ * 1. Типизировать пропсы через `FieldsetStyleProps` и тон рамки через `FieldsetBorderTonePreset`
  * 2. Хранить расширенный ряд тонов рамки в `FIELDSET_BORDER_TONE_PRESETS`
- * 3. Предоставить перечень `FIELDSET_BORDER_TONE_KEYS`
+ * 3. Предоставить перечень `FIELDSET_BORDER_TONE_PRESET_KEYS`
  * 4. Предоставить styled-узел `StyledFieldset`
  *
  * Потребители:
@@ -19,7 +19,7 @@ import {
   DEFAULT_SHAPE_PRESET,
   DEFAULT_SIZE_PRESET,
   getMinBlockSize,
-  getPadding,
+  getPaddingInline,
   resolveBlockRadius,
 } from '@ui/presets';
 import { getSpacingValue } from '@ui/spacing';
@@ -31,7 +31,7 @@ import { DEFAULT_TONE, TONE_PRESETS, type TonePreset } from '@ui/tones';
  * Канонический набор расширен ключом `inverted` для белой рамки на цветной подложке.
  *
  * Соответствие приватно для модуля, доступ к перечню тонов — только через
- * `FIELDSET_BORDER_TONE_KEYS`, чтение цвета — через `getFieldsetBorderColor`.
+ * `FIELDSET_BORDER_TONE_PRESET_KEYS`, чтение цвета — через `getFieldsetBorderColor`.
  */
 const FIELDSET_BORDER_TONE_PRESETS = {
   ...TONE_PRESETS,
@@ -39,18 +39,18 @@ const FIELDSET_BORDER_TONE_PRESETS = {
 } as const satisfies Record<'inverted' | TonePreset, keyof ThemeColors | undefined>;
 
 /**
- * FieldsetBorderTone — представляет тон рамки Fieldset, включая расширение `inverted`.
+ * FieldsetBorderTonePreset — представляет тон рамки Fieldset, включая расширение `inverted`.
  */
-export type FieldsetBorderTone = keyof typeof FIELDSET_BORDER_TONE_PRESETS;
+export type FieldsetBorderTonePreset = keyof typeof FIELDSET_BORDER_TONE_PRESETS;
 
 /**
- * FIELDSET_BORDER_TONE_KEYS — формирует перечень тонов рамки из ключей
+ * FIELDSET_BORDER_TONE_PRESET_KEYS — формирует перечень тонов рамки из ключей
  * `FIELDSET_BORDER_TONE_PRESETS`.
  * Используется в панелях настроек витрины дизайн-системы: `ToneListbox` принимает его
  * пропом `tones`.
  */
-export const FIELDSET_BORDER_TONE_KEYS = Object.freeze(
-  Object.keys(FIELDSET_BORDER_TONE_PRESETS) as FieldsetBorderTone[]
+export const FIELDSET_BORDER_TONE_PRESET_KEYS = Object.freeze(
+  Object.keys(FIELDSET_BORDER_TONE_PRESETS) as FieldsetBorderTonePreset[]
 );
 
 /**
@@ -64,7 +64,7 @@ export const FIELDSET_BORDER_TONE_KEYS = Object.freeze(
  */
 function getFieldsetBorderColor(
   theme: AppTheme,
-  borderTone: FieldsetBorderTone
+  borderTone: FieldsetBorderTonePreset
 ): string {
   const colorKey = FIELDSET_BORDER_TONE_PRESETS[borderTone];
 
@@ -77,7 +77,7 @@ function getFieldsetBorderColor(
  * @property borderTone — тон рамки
  */
 export type FieldsetStyleProps = LayoutProps & {
-  borderTone?: FieldsetBorderTone;
+  borderTone?: FieldsetBorderTonePreset;
 };
 
 /**
@@ -89,16 +89,20 @@ const FIELDSET_PROP_NAMES = new Set<string>([...LAYOUT_PROP_NAMES, 'borderTone']
  * DEFAULT_FIELDSET_BORDER_TONE — задаёт тон рамки по умолчанию.
  * Используется, когда вызывающий код не передал проп `borderTone`.
  */
-const DEFAULT_FIELDSET_BORDER_TONE: FieldsetBorderTone = DEFAULT_TONE;
+const DEFAULT_FIELDSET_BORDER_TONE: FieldsetBorderTonePreset = DEFAULT_TONE;
 
 /**
- * getFieldsetStyles — возвращает CSS-правила для корня `StyledFieldset`: габариты, отступы
- * и рамка.
+ * getFieldsetStyles — возвращает CSS-правила для корня `StyledFieldset`: габариты, отступы,
+ * рамка и посадка легенды на верхнюю границу рамки.
  *
  * Как работает:
  * 1. Берёт тему и подставляет дефолт `borderTone`
- * 2. Собирает габариты, отступы через `getPadding`, рамку цветом через
- *    `getFieldsetBorderColor` и `border-radius` через `resolveBlockRadius`
+ * 2. Собирает габариты, оба отступа одним значением из `getPaddingInline`, рамку
+ *    цветом через `getFieldsetBorderColor` и `border-radius` через
+ *    `resolveBlockRadius`
+ * 3. Вынимает легенду из потока селектором `& > legend` и сажает на верхнюю
+ *    границу рамки: абсолютное позиционирование, `translateY(-50%)`, заливка
+ *    `theme.colors.surface` перекрывает черту
  *
  * @param props пропсы стилизации Fieldset и тема
  * @returns CSS-правила, каждое с новой строки
@@ -106,16 +110,24 @@ const DEFAULT_FIELDSET_BORDER_TONE: FieldsetBorderTone = DEFAULT_TONE;
 function getFieldsetStyles(props: FieldsetStyleProps & { theme: AppTheme }): string {
   const theme = getTheme(props);
   const { borderTone = DEFAULT_FIELDSET_BORDER_TONE } = props;
-  const padding = getPadding(DEFAULT_SIZE_PRESET);
+  const inset = getPaddingInline(DEFAULT_SIZE_PRESET);
 
   return `
     margin: 0;
     inline-size: 100%;
     min-inline-size: 0;
-    padding-block: ${padding.block};
-    padding-inline: ${padding.inline};
+    padding-block: ${inset};
+    padding-inline: ${inset};
     border: 1px solid ${getFieldsetBorderColor(theme, borderTone)};
     border-radius: ${resolveBlockRadius(DEFAULT_SHAPE_PRESET, getMinBlockSize(DEFAULT_SIZE_PRESET))};
+
+    & > legend {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: ${inset};
+      transform: translateY(-50%);
+      background-color: ${theme.colors.surface};
+    }
   `;
 }
 
@@ -124,18 +136,20 @@ function getFieldsetStyles(props: FieldsetStyleProps & { theme: AppTheme }): str
  * Базируется на `<fieldset>` и поддерживает пропсы из `FieldsetStyleProps`.
  *
  * Встроенные стили:
+ *  - `position: relative` — содержащий блок для легенды на рамке
  *  - `display: grid` — раскладка по дефолту проекта
  *  - `grid-auto-rows: min-content` — строки по высоте содержимого
- *  - `gap` — отступ между заголовком и полями
+ *  - `gap` — отступ между полями. Легенда вне потока и в `gap` не входит
  *  - `align-content: start` — содержимое прижато к началу
  *
  * Генерация стилей:
- *  - `getFieldsetStyles` — габариты, отступы и рамка
+ *  - `getFieldsetStyles` — габариты, отступы, рамка и посадка легенды
  *  - `getLayoutStyles` — отступы, позиционирование, размеры
  */
 export const StyledFieldset = styled.fieldset.withConfig({
   shouldForwardProp: (prop) => !FIELDSET_PROP_NAMES.has(prop),
 })<FieldsetStyleProps>`
+  position: relative;
   display: grid;
   grid-auto-rows: min-content;
   gap: ${getSpacingValue(8)};

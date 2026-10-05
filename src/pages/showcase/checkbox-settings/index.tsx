@@ -18,13 +18,11 @@ import {
   CHECKBOX_CHECKED_MARK_KEYS,
   CHECKBOX_UNCHECKED_MARK_KEYS,
   Checkbox,
-  getCheckboxTextSize,
   type CheckboxCheckedMark,
   type CheckboxUncheckedMark,
 } from '@ui/checkbox';
 import { Listbox, type ListboxOption } from '@ui/listbox';
 import { SIZE_PRESET_KEYS, type SizePreset } from '@ui/presets';
-import { type TextSizePreset, type TextTone } from '@ui/text';
 
 import { StyledSettingsForm } from '../showcase.styles';
 import { SizeListbox } from '../size-listbox';
@@ -33,19 +31,15 @@ import { TextGroup } from '../text-group';
 /**
  * CheckboxWidgetState — представляет состояние настроек компонента Checkbox в витрине дизайн-системы.
  * Ключи совпадают с именами пропов компонента Checkbox, кроме витринных ключей:
- * `showText` управляет передачей подписи в превью, `text` хранит содержимое `children`.
+ * `text` хранит содержимое `children`.
  * Используется для синхронизации значений между панелью управления и демонстрационным чекбоксом.
  *
  * @property checked — включает отмеченное состояние бокса
  * @property checkedMark — марка в checked-состоянии
  * @property disabled — включает недоступное состояние
- * @property inverted — включает инвертированную палитру
- * @property showText — витринный ключ показа подписи. Выключенный — бокс без обёртки
- * @property sizePreset — размер бокса
+ * @property inverted — включает рамку тона `primary` в покое и красит марки в `primary`
+ * @property size — размер бокса
  * @property text — подпись бокса
- * @property textItalic — включает курсив подписи
- * @property textSize — размер подписи
- * @property textTone — тон подписи
  * @property uncheckedMark — марка в unchecked-состоянии
  */
 export type CheckboxWidgetState = {
@@ -53,12 +47,8 @@ export type CheckboxWidgetState = {
   checkedMark: CheckboxCheckedMark;
   disabled: boolean;
   inverted: boolean;
-  showText: boolean;
-  sizePreset: SizePreset;
+  size: SizePreset;
   text: string;
-  textItalic: boolean;
-  textSize: TextSizePreset;
-  textTone: TextTone;
   uncheckedMark: CheckboxUncheckedMark;
 };
 
@@ -110,45 +100,18 @@ export function CheckboxSettings({ onChange, state }: CheckboxSettingsProps) {
       <SizeListbox
         label="Size:"
         sizes={SIZE_PRESET_KEYS}
-        value={state.sizePreset}
-        onChange={(size) => {
-          onChange('sizePreset', size);
-          onChange('textSize', getCheckboxTextSize(size));
-        }}
+        value={state.size}
+        onChange={(size) => onChange('size', size)}
       />
-
-      <Checkbox
-        checked={state.inverted}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('inverted', event.target.checked)
-        }
-      >
-        Show inverted
-      </Checkbox>
 
       <TextGroup
         contents={[
           {
-            label: 'Text:',
             value: state.text,
             onChange: (value) => onChange('text', value),
           },
         ]}
-        italic={state.textItalic}
-        show={{
-          checked: state.showText,
-          onChange: (checked) => onChange('showText', checked),
-        }}
-        size={state.textSize}
-        tones={[
-          {
-            label: 'Text tone:',
-            value: state.textTone,
-            onChange: (tone) => onChange('textTone', tone),
-          },
-        ]}
-        onItalicChange={(value) => onChange('textItalic', value)}
-        onSizeChange={(size) => onChange('textSize', size)}
+        labelPrefix="Text"
       />
 
       <Checkbox
@@ -175,6 +138,15 @@ export function CheckboxSettings({ onChange, state }: CheckboxSettingsProps) {
           onChange={(value) => onChange('uncheckedMark', value as CheckboxUncheckedMark)}
         />
       )}
+
+      <Checkbox
+        checked={state.inverted}
+        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+          onChange('inverted', event.target.checked)
+        }
+      >
+        Show inverted
+      </Checkbox>
 
       <Checkbox
         checked={state.disabled}

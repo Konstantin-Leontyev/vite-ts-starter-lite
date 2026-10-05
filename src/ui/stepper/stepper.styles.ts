@@ -4,18 +4,18 @@
  *
  * Основные задачи:
  * 1. Типизировать пропсы через `StepperStyleProps`
- * 2. Предоставить функцию `getStepperTextSize`
- * 3. Предоставить styled-узлы `StyledStepperFieldRoot`, `StyledStepperRoot`,
+ * 2. Предоставить styled-узлы `StyledStepperFieldRoot`, `StyledStepperRoot`,
  *    `StyledStepperValue`, `StyledStepperInput`, `StyledStepperSpin` и `StyledStepperButton`
- * 4. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
+ * 3. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
  *
  * Потребители:
- *  - `src/ui/stepper/index.tsx` — собирает компонент Stepper и реэкспортирует публичное API
+ *  - `src/ui/stepper/index.tsx` — собирает компонент Stepper
  */
 import styled from 'styled-components';
 
 import { getBorderStyles } from '@ui/border';
-import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
+import { getFieldLabelRootStyles } from '@ui/field-label';
+import { LAYOUT_PROP_NAMES, type LayoutProps } from '@ui/layout';
 import { getOutlineStyles } from '@ui/outline';
 import {
   DEFAULT_SHAPE_PRESET,
@@ -28,92 +28,57 @@ import {
   type SizePreset,
 } from '@ui/presets';
 import { getSpacingValue } from '@ui/spacing';
-import {
-  getTextProperties,
-  getTextToneColor,
-  type TextAlignPreset,
-  type TextSizePreset,
-  type TextTone,
-} from '@ui/text';
+import { getTextProperties, type TextAlignPreset } from '@ui/text';
 import { getTheme, type AppTheme } from '@ui/theme';
+import { type TonePreset } from '@ui/tones';
 
 export { splitLayoutProps } from '@ui/layout';
 
 /**
- * getStepperTextSize — возвращает размер значения и суффикса по `sizePreset`.
- * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
- *
- * @param sizePreset размер счётчика
- * @returns метка размера текста из `TextSizePreset` для значения и суффикса счётчика
- */
-export function getStepperTextSize(sizePreset?: SizePreset): TextSizePreset {
-  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
-}
-
-/**
  * StepperRootStyleProps — представляет пропсы стилизации корневого поля Stepper.
  *
+ * @property borderTone — тон рамки
  * @property shape — форма поля
- * @property sizePreset — размер компонента
+ * @property size — размер компонента
  */
 type StepperRootStyleProps = {
+  borderTone?: TonePreset;
   shape?: ShapePreset;
-  sizePreset?: SizePreset;
+  size?: SizePreset;
 };
 
 /**
  * StepperStyleProps — представляет пропсы стилизации Stepper и layout-пропсы.
- *
- * @property textAlign — горизонтальное выравнивание пары «значение + суффикс»
- * @property textItalic — включает курсив значения и суффикса
- * @property textSize — размер значения и суффикса
- * @property textTone — тон значения и суффикса
  */
-export type StepperStyleProps = LayoutProps &
-  StepperRootStyleProps & {
-    textAlign?: TextAlignPreset;
-    textItalic?: boolean;
-    textSize?: TextSizePreset;
-    textTone?: TextTone;
-  };
+export type StepperStyleProps = LayoutProps & StepperRootStyleProps;
 
 /**
  * StyledStepperFieldRoot — задаёт корневой узел компонента Stepper.
  * Базируется на `<div>` и поддерживает layout-пропсы.
  *
- * Встроенные стили:
- *  - `display: grid` — вертикальный поток подписи и поля
- *  - `gap` — отступ между подписью и полем
- *  - `inline-size: 100%` — занимает ширину родителя
- *  - `min-inline-size: 0` — предотвращает переполнение
- *
  * Генерация стилей:
- *  - `getLayoutStyles` — отступы, позиционирование, размеры
+ *  - `getFieldLabelRootStyles` — колонка подписи и поля, layout-пропсы
  */
 export const StyledStepperFieldRoot = styled.div.withConfig({
   shouldForwardProp: (prop) => !LAYOUT_PROP_NAMES.has(prop),
 })<LayoutProps>`
-  display: grid;
-  gap: ${getSpacingValue(8)};
-  inline-size: 100%;
-  min-inline-size: 0;
-  ${(props) => getLayoutStyles(props)}
+  ${(props) => getFieldLabelRootStyles(props)}
 `;
 
 /**
  * STEPPER_ROOT_PROP_NAMES — хранит имена пропсов стилизации поля Stepper.
  */
-const STEPPER_ROOT_PROP_NAMES = new Set<string>(['shape', 'sizePreset']);
+const STEPPER_ROOT_PROP_NAMES = new Set<string>(['borderTone', 'shape', 'size']);
 
 /**
  * getStepperRootStyles — возвращает CSS-правила для узла `StyledStepperRoot`: габариты,
  * рамку с тенью через `getBorderStyles`, скругление, фон и `outline` фокуса.
  *
  * Как работает:
- * 1. Берёт тему и подставляет дефолты `shape` и `sizePreset`
+ * 1. Берёт тему и подставляет дефолты `shape` и `size`
  * 2. Собирает `min-block-size`, `border-radius` через `resolveBlockRadius`,
  *    заливку `surface` и рамку с тенью через `getBorderStyles`
- * 3. Акцент фокуса даёт `outline` на узле при `:focus-within`
+ * 3. Акцент фокуса даёт `outline` на узле при `&:has(:focus-visible)`
  *
  * @param props пропсы стилизации поля и тема
  * @returns CSS-правила, каждое с новой строки
@@ -122,16 +87,16 @@ function getStepperRootStyles(
   props: StepperRootStyleProps & { theme: AppTheme }
 ): string {
   const theme = getTheme(props);
-  const { shape = DEFAULT_SHAPE_PRESET, sizePreset = DEFAULT_SIZE_PRESET } = props;
-  const minBlockSize = getMinBlockSize(sizePreset);
+  const { borderTone, shape = DEFAULT_SHAPE_PRESET, size = DEFAULT_SIZE_PRESET } = props;
+  const minBlockSize = getMinBlockSize(size);
 
   return `
     min-block-size: ${minBlockSize};
     border-radius: ${resolveBlockRadius(shape, minBlockSize)};
     background-color: ${theme.colors.surface};
-    ${getBorderStyles(theme)}
+    ${getBorderStyles(theme, undefined, undefined, borderTone)}
 
-    &:focus-within {
+    &:has(:focus-visible) {
       ${getOutlineStyles(theme.colors.focusOutline)}
     }
   `;
@@ -167,55 +132,50 @@ export const StyledStepperRoot = styled.div.withConfig({
 /**
  * StepperValueStyleProps — представляет пропсы стилизации ячейки значения.
  *
- * @property sizePreset — размер компонента
- * @property textAlign — горизонтальное выравнивание пары «значение + суффикс»
+ * @property size — размер компонента
  */
 type StepperValueStyleProps = {
-  sizePreset?: SizePreset;
-  textAlign?: TextAlignPreset;
+  size?: SizePreset;
 };
 
 /**
  * STEPPER_VALUE_PROP_NAMES — хранит имена пропсов стилизации ячейки значения.
  */
-const STEPPER_VALUE_PROP_NAMES = new Set<string>(['sizePreset', 'textAlign']);
+const STEPPER_VALUE_PROP_NAMES = new Set<string>(['size']);
 
 /**
- * DEFAULT_STEPPER_TEXT_ALIGN — задаёт выравнивание пары «значение + суффикс» по умолчанию.
- * Используется, когда вызывающий код не передал проп `textAlign`.
+ * STEPPER_TEXT_ALIGN — задаёт выравнивание пары «значение + суффикс».
+ * Пара остаётся по центру через `justify-content` ячейки.
  */
-const DEFAULT_STEPPER_TEXT_ALIGN: TextAlignPreset = 'center';
+const STEPPER_TEXT_ALIGN: TextAlignPreset = 'center';
 
 /**
  * getStepperValueStyles — возвращает CSS-правила для узла `StyledStepperValue`: внутренние
  * отступы по размеру и позицию пары «значение + суффикс».
- * Поле ввода сжато по содержимому через `field-sizing: content`, поэтому `textAlign`
- * транслируется в `justify-content` ячейки и двигает пару целиком —
+ * Поле ввода сжато по содержимому через `field-sizing: content`, поэтому выравнивание
+ * живёт в `justify-content` ячейки и двигает пару целиком —
  * суффикс не отрывается от значения.
  *
  * Как работает:
- * 1. Подставляет дефолты `sizePreset` и `textAlign` — выравнивание из
- *    `DEFAULT_STEPPER_TEXT_ALIGN`
- * 2. Собирает `padding-inline` через `getPaddingInline` и `justify-content` из `textAlign`
+ * 1. Подставляет дефолт `size`
+ * 2. Собирает `padding-inline` через `getPaddingInline` и `justify-content` из
+ *    `STEPPER_TEXT_ALIGN`
  *
- * @param props пропсы стилизации ячейки значения и тема
+ * @param props пропсы стилизации ячейки значения
  * @returns CSS-правила, каждое с новой строки
  */
-function getStepperValueStyles(
-  props: StepperValueStyleProps & { theme: AppTheme }
-): string {
-  const { sizePreset = DEFAULT_SIZE_PRESET, textAlign = DEFAULT_STEPPER_TEXT_ALIGN } =
-    props;
+function getStepperValueStyles(props: StepperValueStyleProps): string {
+  const { size = DEFAULT_SIZE_PRESET } = props;
 
   return `
-    padding-inline: ${getPaddingInline(sizePreset)};
-    justify-content: ${textAlign};
+    padding-inline: ${getPaddingInline(size)};
+    justify-content: ${STEPPER_TEXT_ALIGN};
   `;
 }
 
 /**
  * StyledStepperValue — задаёт ячейку значения компонента Stepper.
- * Базируется на `<div>`, принимает пропсы `sizePreset` и `textAlign`,
+ * Базируется на `<div>`, принимает проп `size`,
  * содержит нативное поле ввода и суффикс единицы во внутреннем Text.
  *
  * Встроенные стили:
@@ -249,55 +209,32 @@ export const StyledStepperValue = styled.div.withConfig({
 /**
  * StepperInputStyleProps — представляет пропсы стилизации нативного поля ввода.
  *
- * @property textItalic — включает курсив значения
- * @property textSize — размер значения
- * @property textTone — тон значения
+ * @property size — размер компонента
  */
 type StepperInputStyleProps = {
-  textItalic?: boolean;
-  textSize: TextSizePreset;
-  textTone?: TextTone;
+  size?: SizePreset;
 };
 
 /**
  * STEPPER_INPUT_PROP_NAMES — хранит имена пропсов стилизации нативного поля ввода.
  */
-const STEPPER_INPUT_PROP_NAMES = new Set<string>(['textItalic', 'textSize', 'textTone']);
+const STEPPER_INPUT_PROP_NAMES = new Set<string>(['size']);
 
 /**
- * getStepperInputStyles — возвращает CSS-правила для узла `StyledStepperInput`: типографику,
- * курсив и тон значения.
+ * getStepperInputStyles — возвращает CSS-правила для узла `StyledStepperInput`: типографику
+ * значения.
  *
  * Как работает:
- * 1. Берёт тему и пропсы `textItalic`, `textSize` и `textTone`
- * 2. Кладёт типографику через `getTextProperties` по уже вычисленному `textSize`
- * 3. При `textItalic` добавляет курсив значения
- * 4. При переданном `textTone` красит значение через `getTextToneColor`. Без тона
- *    правило `color` не добавляется — наследование цвета обеспечивает reset для `input`
+ * 1. Подставляет дефолт `size`
+ * 2. Кладёт типографику через `getTextProperties` по `getTextSize`
  *
- * @param props пропсы стилизации нативного поля ввода и тема
+ * @param props пропсы стилизации нативного поля ввода
  * @returns CSS-правила, каждое с новой строки
  */
-function getStepperInputStyles(
-  props: StepperInputStyleProps & { theme: AppTheme }
-): string {
-  const theme = getTheme(props);
-  const { textItalic, textSize, textTone } = props;
+function getStepperInputStyles(props: StepperInputStyleProps): string {
+  const { size = DEFAULT_SIZE_PRESET } = props;
 
-  const styles = [getTextProperties(textSize)];
-
-  if (textItalic === true) {
-    styles.push('font-style: italic;');
-  }
-
-  const textColor =
-    textTone !== undefined ? getTextToneColor(theme, textTone) : undefined;
-
-  if (textColor !== undefined) {
-    styles.push(`color: ${textColor};`);
-  }
-
-  return styles.join('\n');
+  return getTextProperties(getTextSize(size));
 }
 
 /**
@@ -309,10 +246,10 @@ function getStepperInputStyles(
  *    суффикс в ячейке встаёт вплотную к значению
  *  - `min-inline-size: 0` — при нехватке места в ячейке сжимается поле, не суффикс
  *  - `background-color: transparent` и `border: none` — рамку и `outline` фокуса несёт корень
- *  - `outline: none` на `:focus-visible` — `outline` фокуса показывает корень через `:focus-within`
+ *  - `outline: none` на `:focus-visible` — `outline` фокуса показывает корень через `&:has(:focus-visible)`
  *
  * Генерация стилей:
- *  - `getStepperInputStyles` — типографика, курсив и тон значения
+ *  - `getStepperInputStyles` — типографика значения
  */
 export const StyledStepperInput = styled.input.withConfig({
   shouldForwardProp: (prop) => !STEPPER_INPUT_PROP_NAMES.has(prop),
@@ -333,23 +270,23 @@ export const StyledStepperInput = styled.input.withConfig({
 /**
  * StepperSpinStyleProps — представляет пропсы стилизации области стрелок.
  *
- * @property sizePreset — размер компонента
+ * @property size — размер компонента
  */
 type StepperSpinStyleProps = {
-  sizePreset?: SizePreset;
+  size?: SizePreset;
 };
 
 /**
  * STEPPER_SPIN_PROP_NAMES — хранит имена пропсов стилизации области стрелок.
  */
-const STEPPER_SPIN_PROP_NAMES = new Set<string>(['sizePreset']);
+const STEPPER_SPIN_PROP_NAMES = new Set<string>(['size']);
 
 /**
  * getStepperSpinStyles — возвращает CSS-правила для узла `StyledStepperSpin`: ширину области
  * стрелок и разделитель.
  *
  * Как работает:
- * 1. Берёт тему и подставляет дефолт `sizePreset`
+ * 1. Берёт тему и подставляет дефолт `size`
  * 2. Собирает ширину области через `getMinBlockSize` и разделитель
  *    `border-inline-start` цветом `border` из темы
  *
@@ -360,17 +297,17 @@ function getStepperSpinStyles(
   props: StepperSpinStyleProps & { theme: AppTheme }
 ): string {
   const theme = getTheme(props);
-  const { sizePreset = DEFAULT_SIZE_PRESET } = props;
+  const { size = DEFAULT_SIZE_PRESET } = props;
 
   return `
-    inline-size: ${getMinBlockSize(sizePreset)};
+    inline-size: ${getMinBlockSize(size)};
     border-inline-start: 1px solid ${theme.colors.border};
   `;
 }
 
 /**
  * StyledStepperSpin — задаёт область стрелок компонента Stepper.
- * Базируется на `<div>` и принимает проп `sizePreset`.
+ * Базируется на `<div>` и принимает проп `size`.
  *
  * Встроенные стили:
  *  - `display: grid` и `grid-template-rows: 1fr 1fr` — делит область пополам на стрелки вверх и вниз
@@ -389,16 +326,16 @@ export const StyledStepperSpin = styled.div.withConfig({
 /**
  * StepperButtonStyleProps — представляет пропсы стилизации половины области стрелок.
  *
- * @property sizePreset — размер компонента
+ * @property size — размер компонента
  */
 type StepperButtonStyleProps = {
-  sizePreset?: SizePreset;
+  size?: SizePreset;
 };
 
 /**
  * STEPPER_BUTTON_PROP_NAMES — хранит имена пропсов стилизации половины области стрелок.
  */
-const STEPPER_BUTTON_PROP_NAMES = new Set<string>(['sizePreset']);
+const STEPPER_BUTTON_PROP_NAMES = new Set<string>(['size']);
 
 /**
  * getStepperButtonStyles — возвращает CSS-правила для узла `StyledStepperButton`: габарит
@@ -408,7 +345,7 @@ const STEPPER_BUTTON_PROP_NAMES = new Set<string>(['sizePreset']);
  * половинки с отступом `2` даёт окна `12`, `16` или `20` px при половинках `16`, `20` или `24` px.
  *
  * Как работает:
- * 1. Берёт тему и подставляет дефолт `sizePreset`
+ * 1. Берёт тему и подставляет дефолт `size`
  * 2. Собирает ширину `100%`, высоту как половину `getMinBlockSize` и цвет `muted`
  * 3. У первой половинки кладёт разделитель `border-block-end`
  * 4. На наведении и `:focus-visible` без `disabled` красит фон `veil`
@@ -420,11 +357,11 @@ function getStepperButtonStyles(
   props: StepperButtonStyleProps & { theme: AppTheme }
 ): string {
   const theme = getTheme(props);
-  const { sizePreset = DEFAULT_SIZE_PRESET } = props;
+  const { size = DEFAULT_SIZE_PRESET } = props;
 
   return `
     inline-size: 100%;
-    block-size: calc(${getMinBlockSize(sizePreset)} / 2);
+    block-size: calc(${getMinBlockSize(size)} / 2);
     color: ${theme.colors.muted};
 
     &:first-of-type {
@@ -440,14 +377,14 @@ function getStepperButtonStyles(
 
 /**
  * StyledStepperButton — задаёт половину области стрелок компонента Stepper.
- * Базируется на `<button>` и принимает проп `sizePreset`. Окно шеврона создаёт `Icon` в JSX.
+ * Базируется на `<button>` и принимает проп `size`. Окно шеврона создаёт `Icon` в JSX.
  *
  * Встроенные стили:
  *  - `display: grid` — раскладка по дефолту проекта, Icon заполняет половинку
  *  - `grid-template: 100% / 100%` — definite-ячейка под Icon-заполнитель: половинка
  *    не квадратная, в авто-строке процент высоты Icon цикличен и отбрасывается —
  *    svg надувает строку по ширине
- *  - `outline: none` на `:focus-visible` — `outline` фокуса показывает корень через `:focus-within`
+ *  - `outline: none` на `:focus-visible` — `outline` фокуса показывает корень через `&:has(:focus-visible)`
  *
  * Генерация стилей:
  *  - `getStepperButtonStyles` — габарит половинки, цвет, разделитель между половинками

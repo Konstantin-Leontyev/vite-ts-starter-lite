@@ -4,13 +4,12 @@
  *
  * Поддерживает:
  *  - layout-пропсы: отступы, позиционирование, размеры
- *  - размерный ряд через проп `sizePreset`
+ *  - размерный ряд через проп `size`
  *  - подпись справа от бокса через `children`. Без `children` рендерится один бокс
  *    без обёртки
- *  - тон подписи через проп `textTone`
- *  - размер подписи через проп `textSize`
- *  - курсив подписи через проп `textItalic`
- *  - инвертированную палитру через проп `inverted`
+ *  - текстовую метку через проп `aria-label`
+ *  - id метки через проп `aria-labelledby`
+ *  - рамку тона `primary` в покое и окраску марок через проп `inverted`
  *  - марку checked-состояния через проп `checkedMark`
  *  - марку unchecked-состояния через проп `uncheckedMark`
  *
@@ -19,7 +18,6 @@
  * 2. Типизировать пропсы через `CheckboxProps`
  * 3. Реэкспортировать пресеты `checkboxSizePresets`, перечни марок и типы
  *    `CheckboxCheckedMark` и `CheckboxUncheckedMark`
- * 4. Реэкспортировать мост размера текста `getCheckboxTextSize`
  *
  * Потребители:
  *  - контролы, например Listbox и Table — рендерят чекбоксы
@@ -30,9 +28,11 @@
  *  - `src/pages/showcase` — демонстрирует состояния в витрине
  */
 
-import { type ComponentPropsWithRef, type ReactNode } from 'react';
+import { type ComponentPropsWithRef } from 'react';
 
-import { Text, type TextSizePreset, type TextTone } from '@ui/text';
+import { type ChildrenAccessibleName } from '@ui/a11y';
+import { getTextSize } from '@ui/presets';
+import { Text } from '@ui/text';
 
 import {
   CHECKBOX_CHECKED_MARK_KEYS,
@@ -40,7 +40,6 @@ import {
   StyledCheckboxControl,
   StyledCheckboxRoot,
   checkboxSizePresets,
-  getCheckboxTextSize,
   splitLayoutProps,
   type CheckboxCheckedMark,
   type CheckboxStyleProps,
@@ -48,27 +47,19 @@ import {
 } from './checkbox.styles';
 
 /**
- * DEFAULT_CHECKBOX_TEXT_TONE — задаёт тон подписи по умолчанию.
- * Подпись контрола — вторичный текст, поэтому `muted`.
- */
-const DEFAULT_CHECKBOX_TEXT_TONE: TextTone = 'muted';
-
-/**
  * CheckboxProps — представляет пропсы компонента Checkbox.
- *
- * @property children — подпись справа от бокса
- * @property textItalic — включает курсив подписи
- * @property textSize — размер подписи
- * @property textTone — тон подписи
  */
-type CheckboxProps = CheckboxStyleProps & {
-  children?: ReactNode;
-  textItalic?: boolean;
-  textSize?: TextSizePreset;
-  textTone?: TextTone;
-} & Omit<
+type CheckboxProps = CheckboxStyleProps &
+  ChildrenAccessibleName &
+  Omit<
     ComponentPropsWithRef<'input'>,
-    'children' | 'className' | 'style' | 'type' | keyof CheckboxStyleProps
+    | 'aria-label'
+    | 'aria-labelledby'
+    | 'children'
+    | 'className'
+    | 'style'
+    | 'type'
+    | keyof CheckboxStyleProps
   >;
 
 /**
@@ -76,17 +67,14 @@ type CheckboxProps = CheckboxStyleProps & {
  *
  * @example
  * <Checkbox checked={agreed} onChange={handleChange}>Согласен</Checkbox>
- * <Checkbox checked={selected} onChange={handleChange} />
+ * <Checkbox aria-label="Selected" checked={selected} onChange={handleChange} />
  * <Checkbox inverted checkedMark="minus">Опция</Checkbox>
  */
 function Checkbox({
   checkedMark,
   children,
   inverted,
-  sizePreset,
-  textItalic,
-  textSize,
-  textTone = DEFAULT_CHECKBOX_TEXT_TONE,
+  size,
   uncheckedMark,
   ...rest
 }: CheckboxProps) {
@@ -97,7 +85,7 @@ function Checkbox({
     <StyledCheckboxControl
       checkedMark={checkedMark}
       inverted={inverted}
-      sizePreset={sizePreset}
+      size={size}
       type="checkbox"
       uncheckedMark={uncheckedMark}
       {...(hasText ? restProps : rest)}
@@ -111,24 +99,17 @@ function Checkbox({
   return (
     <StyledCheckboxRoot {...layoutProps}>
       {control}
-      <Text
-        italic={textItalic}
-        sizePreset={textSize ?? getCheckboxTextSize(sizePreset)}
-        tone={textTone}
-      >
-        {children}
-      </Text>
+      <Text size={getTextSize(size)}>{children}</Text>
     </StyledCheckboxRoot>
   );
 }
 
-/* eslint-disable react-refresh/only-export-components -- реэкспорт пресетов, перечней марок и моста размера текста */
+/* eslint-disable react-refresh/only-export-components -- реэкспорт пресетов, перечней марок и публичных типов */
 export {
   CHECKBOX_CHECKED_MARK_KEYS,
   CHECKBOX_UNCHECKED_MARK_KEYS,
   Checkbox,
   checkboxSizePresets,
-  getCheckboxTextSize,
   type CheckboxCheckedMark,
   type CheckboxUncheckedMark,
 };

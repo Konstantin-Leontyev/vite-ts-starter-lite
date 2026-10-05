@@ -3,13 +3,11 @@
  * Определяет внешний вид компонента Listbox.
  *
  * Основные задачи:
- * 1. Типизировать пропсы через `ListboxStyleProps` и `ListboxSurfaceStyleProps`
- * 2. Хранить максимум видимых строк панели в `LISTBOX_PANEL_MAX_OPTION_ROWS`
- * 3. Предоставить функцию `getListboxTextSize`
- * 4. Предоставить styled-узлы `StyledListboxRoot`, `StyledListboxTriggerRow`,
- *    `StyledListboxTrigger`, `StyledListboxPanel`, `StyledListboxOptionButton`
- *    и `StyledListboxOptionRow`
- * 5. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
+ * 1. Типизировать пропсы через `ListboxStyleProps` и `ListboxAppearance`
+ * 2. Предоставить styled-узлы `StyledListboxRoot`, `StyledListboxTriggerRow`,
+ *    `StyledListboxTrigger`, `StyledListboxValue`, `StyledListboxPanel`,
+ *    `StyledListboxSearchPanel`, `StyledListboxList` и `StyledListboxOption`
+ * 3. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
  *
  * Потребители:
  *  - `src/ui/listbox/index.tsx` — собирает компонент Listbox
@@ -17,68 +15,40 @@
 
 import styled from 'styled-components';
 
-import { getPortalPanelStyles } from '@ui/anchored-portal';
-import {
-  ICON_SETTING_PROP_NAMES,
-  getIconPositionStyles,
-  resolveIconStateBackground,
-} from '@ui/icon';
+import { getCssAnchorPlacementStyles } from '@ui/anchored-panel';
+import { ICON_SETTING_PROP_NAMES } from '@ui/icon';
 import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
-import { MOTION_CONTROL_DURATION, getTransitionStyles } from '@ui/motion';
 import {
+  OPEN_CONTROL_ROW_GAP,
+  OPEN_CONTROL_SELECTABLE_INSET,
+  getOpenControlActiveRowHighlightStyles,
+  getOpenControlOptionsListScrollStyles,
+  getOpenControlPanelStyles,
   getOpenControlRootStyles,
+  getOpenControlSelectableRowSurfaceStyles,
   getOpenControlTriggerRowStyles,
+  getOpenControlTriggerStyles,
+  type OpenControlSurfaceStyleProps,
 } from '@ui/open-control';
-import {
-  DEFAULT_SHAPE_PRESET,
-  DEFAULT_SIZE_PRESET,
-  getMinBlockSize,
-  getPaddingInline,
-  getTextSize,
-  resolveBlockRadius,
-  type ShapePreset,
-  type SizePreset,
-} from '@ui/presets';
+import { DEFAULT_SIZE_PRESET, getPaddingInline } from '@ui/presets';
 import { getSpacingValue } from '@ui/spacing';
-import { type TextSizePreset } from '@ui/text';
-import { getTheme, type AppTheme } from '@ui/theme';
-import { DEFAULT_TONE, type TonePreset } from '@ui/tones';
+import { DISABLED_OPACITY, getTheme, type AppTheme } from '@ui/theme';
+import { type TonePreset } from '@ui/tones';
 
 export { splitLayoutProps } from '@ui/layout';
 
 /**
- * getListboxTextSize — возвращает размер текста триггера и опций по `sizePreset`.
- * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
- *
- * @param sizePreset размер Listbox
- * @returns метка размера текста из `TextSizePreset` для текста триггера и опций
+ * ListboxAppearance — представляет вид триггера Listbox.
  */
-export function getListboxTextSize(sizePreset?: SizePreset): TextSizePreset {
-  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
-}
-
-/**
- * resolveListboxBlockRadius — возвращает скругление поверхности по `shape` и `sizePreset`.
- *
- * @param shape форма поверхности
- * @param sizePreset размер компонента
- * @returns значение для CSS-свойства `border-radius`
- */
-function resolveListboxBlockRadius(shape: ShapePreset, sizePreset: SizePreset): string {
-  return resolveBlockRadius(shape, getMinBlockSize(sizePreset));
-}
+export type ListboxAppearance = 'field' | 'icon';
 
 /**
  * ListboxSurfaceStyleProps — представляет пропсы стилизации поверхности Listbox.
  *
  * @property iconTone — тон секции шеврона
- * @property shape — форма поверхности
- * @property sizePreset — размер компонента
  */
-type ListboxSurfaceStyleProps = {
+type ListboxSurfaceStyleProps = OpenControlSurfaceStyleProps & {
   iconTone?: TonePreset;
-  shape?: ShapePreset;
-  sizePreset?: SizePreset;
 };
 
 /**
@@ -87,17 +57,32 @@ type ListboxSurfaceStyleProps = {
 export type ListboxStyleProps = LayoutProps & ListboxSurfaceStyleProps;
 
 /**
+ * getListboxRootStyles — возвращает CSS-правила для корня `StyledListboxRoot`:
+ * раскладку и ширину вида `icon`.
+ *
+ * Как работает:
+ * 1. Подставляет раскладку корня через `getOpenControlRootStyles`
+ * 2. Вид `icon` передаёт ширину `max-content`, поле — дефолт `100%`
+ *
+ * @param props вид триггера
+ * @returns CSS-правила, каждое с новой строки
+ */
+function getListboxRootStyles(props: { appearance?: ListboxAppearance }): string {
+  return getOpenControlRootStyles(props.appearance === 'icon' ? 'max-content' : '100%');
+}
+
+/**
  * StyledListboxRoot — задаёт корневой узел компонента Listbox.
- * Базируется на `<div>` и поддерживает layout-пропсы.
+ * Базируется на `<div>` и принимает layout-пропсы и проп `appearance`.
  *
  * Генерация стилей:
- *  - `getOpenControlRootStyles` — раскладка, зазор, ширина и подъём при открытии
+ *  - `getListboxRootStyles` — раскладка и ширина вида `icon`
  *  - `getLayoutStyles` — отступы, позиционирование, размеры
  */
 export const StyledListboxRoot = styled.div.withConfig({
-  shouldForwardProp: (prop) => !LAYOUT_PROP_NAMES.has(prop),
-})<LayoutProps>`
-  ${getOpenControlRootStyles()}
+  shouldForwardProp: (prop) => prop !== 'appearance' && !LAYOUT_PROP_NAMES.has(prop),
+})<LayoutProps & { appearance?: ListboxAppearance }>`
+  ${(props) => getListboxRootStyles(props)}
   ${(props) => getLayoutStyles(props)}
 `;
 
@@ -107,8 +92,9 @@ export const StyledListboxRoot = styled.div.withConfig({
  */
 const LISTBOX_SURFACE_PROP_NAMES = new Set<string>([
   ...ICON_SETTING_PROP_NAMES,
+  'borderTone',
   'shape',
-  'sizePreset',
+  'size',
 ]);
 
 /**
@@ -121,268 +107,278 @@ const LISTBOX_SURFACE_PROP_NAMES = new Set<string>([
 export const StyledListboxTriggerRow = styled.div.withConfig({
   shouldForwardProp: (prop) => !LISTBOX_SURFACE_PROP_NAMES.has(prop),
 })<ListboxSurfaceStyleProps>`
-  ${(props) => getOpenControlTriggerRowStyles(props, resolveListboxBlockRadius)}
+  ${(props) => getOpenControlTriggerRowStyles(props)}
 `;
-
-/**
- * getListboxTriggerStyles — возвращает CSS-правила для узла `StyledListboxTrigger`:
- * раскладку лейбла, шов и канал состояний секции шеврона. Статику секции красит
- * внутренний Icon своими пропсами; собственную запись канала выключает через
- * `showHover={false}`.
- *
- * Как работает:
- * 1. Берёт тему и подставляет дефолты пропсов
- * 2. Собирает сетку триггера: высоту ряда держит `min-block-size` родителя
- * 3. Кладёт раскладку позиции через `getIconPositionStyles`: колонки под позицию
- *    `[data-slot='icon']` и `block-size: 100%` на слоте. Цвет канала состояний — через
- *    `resolveIconStateBackground`
- * 4. На `:not(:disabled):hover` и `:focus-visible` выставляет
- *    `--icon-state-background` — подсвечивается только индикатор, шеврон не
- *    самостоятельное действие
- *
- * @param props пропсы поверхности и тема
- * @returns CSS-правила, каждое с новой строки
- */
-function getListboxTriggerStyles(
-  props: ListboxSurfaceStyleProps & { theme: AppTheme }
-): string {
-  const theme = getTheme(props);
-  const { iconTone = DEFAULT_TONE, sizePreset = DEFAULT_SIZE_PRESET } = props;
-  const stateBackground = resolveIconStateBackground(theme, iconTone);
-
-  return `
-    display: grid;
-    ${getIconPositionStyles()}
-    align-items: center;
-    min-inline-size: 0;
-    text-align: start;
-    [data-slot='label'] {
-      min-inline-size: 0;
-      padding-inline: ${getPaddingInline(sizePreset)};
-    }
-    &:not(:disabled):hover {
-      --icon-state-background: ${stateBackground};
-    }
-    &:focus-visible {
-      outline: none;
-      --icon-state-background: ${stateBackground};
-    }
-  `;
-}
 
 /**
  * StyledListboxTrigger — задаёт кнопку-триггер компонента Listbox.
  * Базируется на `<button>` и принимает пропсы из `ListboxSurfaceStyleProps`.
  *
  * Генерация стилей:
- *  - `getListboxTriggerStyles` — раскладка лейбла и секция шеврона
+ *  - `getOpenControlTriggerStyles` — хром кнопки-триггера
  */
 export const StyledListboxTrigger = styled.button.withConfig({
   shouldForwardProp: (prop) => !LISTBOX_SURFACE_PROP_NAMES.has(prop),
 })<ListboxSurfaceStyleProps>`
-  ${(props) => getListboxTriggerStyles(props)}
+  ${(props) => getOpenControlTriggerStyles(props)}
 `;
 
 /**
  * LISTBOX_BOX_PROP_NAMES — хранит имена пропсов стилизации строки и панели Listbox.
  */
-const LISTBOX_BOX_PROP_NAMES = new Set<string>(['shape', 'sizePreset']);
+const LISTBOX_BOX_PROP_NAMES = new Set<string>(['appearance', 'shape', 'size']);
 
 /**
- * LISTBOX_PANEL_MAX_OPTION_ROWS — задаёт максимум видимых строк опций в панели.
- * Используется в `getListboxPanelStyles` для `max-block-size`.
- */
-const LISTBOX_PANEL_MAX_OPTION_ROWS = 6;
-
-/**
- * getListboxPanelStyles — возвращает CSS-правила для узла `StyledListboxPanel`:
- * хром портала через `getPortalPanelStyles`, ограничение высоты через
- * `LISTBOX_PANEL_MAX_OPTION_ROWS` и прокрутку.
+ * getListboxValueStyles — возвращает CSS-правила для узла `StyledListboxValue`:
+ * раскладку значения, `min-inline-size: 0` и горизонтальный отступ. `display: flex` —
+ * оправданное исключение: отсутствующая иконка опции не резервирует трек.
  *
  * Как работает:
- * 1. Берёт тему, подставляет дефолты `shape` и `sizePreset`
- * 2. Подставляет хром панели через `getPortalPanelStyles`: fixed-позицию, слой
- *    `STACKING_PORTAL`, заливку `surface`, рамку с тенью через `getBorderStyles`,
- *    радиус через `resolveListboxBlockRadius` и постоянный `outline` через
- *    `getOutlineStyles`
- * 3. Ограничивает высоту через `LISTBOX_PANEL_MAX_OPTION_ROWS` и включает
- *    прокрутку `overflow: hidden auto`
+ * 1. Подставляет дефолт `size`
+ * 2. Собирает flex-ряд значения с `gap`, `min-inline-size: 0` и горизонтальным отступом
  *
- * @param props пропсы формы, размера и тема
+ * @param props пропсы поверхности
  * @returns CSS-правила, каждое с новой строки
  */
-function getListboxPanelStyles(
-  props: Pick<ListboxSurfaceStyleProps, 'shape' | 'sizePreset'> & { theme: AppTheme }
-): string {
-  const theme = getTheme(props);
-  const { shape = DEFAULT_SHAPE_PRESET, sizePreset = DEFAULT_SIZE_PRESET } = props;
+function getListboxValueStyles(props: ListboxSurfaceStyleProps): string {
+  const size = props.size ?? DEFAULT_SIZE_PRESET;
 
   return `
-    ${getPortalPanelStyles({
-      theme,
-      borderRadius: resolveListboxBlockRadius(shape, sizePreset),
-    })}
-    max-block-size: calc(${getMinBlockSize(sizePreset)} * ${LISTBOX_PANEL_MAX_OPTION_ROWS});
-    overflow: hidden auto;
+    display: flex;
+    gap: ${getSpacingValue(8)};
+    align-items: center;
+    min-inline-size: 0;
+    padding-inline: ${getPaddingInline(size)};
   `;
 }
 
 /**
- * StyledListboxPanel — задаёт выпадающую панель опций компонента Listbox.
- * Базируется на `<ul>` и принимает пропсы `shape` и `sizePreset`.
+ * StyledListboxValue — задаёт ячейку значения триггера компонента Listbox.
+ * Базируется на `<span>` и принимает проп `size`.
  *
  * Генерация стилей:
- *  - `getListboxPanelStyles` — хром портала через `getPortalPanelStyles`, высота
- *    и прокрутка
+ *  - `getListboxValueStyles` — раскладка значения, `min-inline-size: 0` и отступ
+ */
+export const StyledListboxValue = styled.span.withConfig({
+  shouldForwardProp: (prop) => !LISTBOX_BOX_PROP_NAMES.has(prop),
+})<Pick<ListboxSurfaceStyleProps, 'size'>>`
+  ${(props) => getListboxValueStyles(props)}
+`;
+
+/**
+ * ListboxPanelStyleProps — представляет пропсы стилизации выпадающей панели опций Listbox.
+ *
+ * @property appearance — вид триггера. Задаёт режим ширины панели
+ */
+type ListboxPanelStyleProps = Pick<ListboxSurfaceStyleProps, 'shape' | 'size'> & {
+  appearance?: ListboxAppearance;
+};
+
+/**
+ * getListboxPanelChromeStyles — возвращает общий хром выпадающей панели Listbox:
+ * поверхность через `getOpenControlPanelStyles` и привязку к якорю.
+ * Вид `field` берёт ширину якоря через `viewport-edge`. Вид `icon` берёт ширину
+ * содержимого через `content`: якорь — кнопка-иконка.
+ *
+ * @param props пропсы формы, размера, вида и темы
+ * @returns CSS-правила, каждое с новой строки
+ */
+function getListboxPanelChromeStyles(
+  props: ListboxPanelStyleProps & { theme: AppTheme }
+): string {
+  return `
+    ${getOpenControlPanelStyles(props)}
+    ${getCssAnchorPlacementStyles(
+      props.appearance === 'icon' ? 'content' : 'viewport-edge'
+    )}
+  `;
+}
+
+/**
+ * getListboxPanelStyles — возвращает CSS-правила для узла `StyledListboxPanel`:
+ * хром панели через `getListboxPanelChromeStyles`
+ * и прокрутку списка через `getOpenControlOptionsListScrollStyles`.
+ *
+ * Как работает:
+ * 1. Подставляет дефолт `size`
+ * 2. Подставляет хром панели через `getListboxPanelChromeStyles`
+ * 3. Ограничивает высоту и включает прокрутку через
+ *    `getOpenControlOptionsListScrollStyles`
+ * 4. Прячет указатель над панелью при `data-keyboard-navigating`
+ *
+ * @param props пропсы формы, размера, вида и темы
+ * @returns CSS-правила, каждое с новой строки
+ */
+function getListboxPanelStyles(
+  props: ListboxPanelStyleProps & { theme: AppTheme }
+): string {
+  const { size = DEFAULT_SIZE_PRESET } = props;
+
+  return `
+    ${getListboxPanelChromeStyles(props)}
+    ${getOpenControlOptionsListScrollStyles(size)}
+    &[data-keyboard-navigating] {
+      cursor: none;
+    }
+    &[data-keyboard-navigating] * {
+      cursor: none;
+    }
+  `;
+}
+
+/**
+ * StyledListboxPanel — задаёт выпадающую панель опций компонента Listbox без поиска.
+ * Базируется на `<ul>` и принимает пропсы `shape`, `size` и `appearance`.
+ *
+ * Генерация стилей:
+ *  - `getListboxPanelStyles` — хром панели через `getListboxPanelChromeStyles`,
+ *    высота и прокрутка
  */
 export const StyledListboxPanel = styled.ul.withConfig({
   shouldForwardProp: (prop) => !LISTBOX_BOX_PROP_NAMES.has(prop),
-})<Pick<ListboxSurfaceStyleProps, 'shape' | 'sizePreset'>>`
+})<ListboxPanelStyleProps>`
   ${(props) => getListboxPanelStyles(props)}
 `;
 
 /**
- * getListboxOptionSurfaceBaseStyles — возвращает CSS-правила общей поверхности
- * строки опции: раскладку, габариты, заливку и подложку наведения через `::before`.
+ * getListboxSearchPanelStyles — возвращает CSS-правила для узла
+ * `StyledListboxSearchPanel`: сетку поиска и списка, хром панели
+ * через `getListboxPanelChromeStyles` и обрезку.
  *
  * Как работает:
- * 1. Собирает раскладку строки, габариты по `sizePreset` и заливку `surface`
- * 2. Готовит слот лейбла: `min-inline-size: 0` и слой над подложкой
- * 3. Кладёт абсолютный `::before` с отступом от края, скруглением и переходом
- *    `background-color` — подложку наведения красят вызывающие генераторы
+ * 1. Собирает сетку панели: ряд поиска и список
+ * 2. Подставляет хром панели через `getListboxPanelChromeStyles`
+ * 3. Обрезает содержимое через `overflow: hidden` поверх `overflow: visible`
+ *    сброса UA `[popover]`
  *
- * @param props пропсы формы, размера и тема
+ * @param props пропсы формы, размера, вида и темы
  * @returns CSS-правила, каждое с новой строки
  */
-function getListboxOptionSurfaceBaseStyles(
-  props: Pick<ListboxSurfaceStyleProps, 'shape' | 'sizePreset'> & { theme: AppTheme }
+function getListboxSearchPanelStyles(
+  props: ListboxPanelStyleProps & { theme: AppTheme }
 ): string {
-  const theme = getTheme(props);
-  const { shape = DEFAULT_SHAPE_PRESET, sizePreset = DEFAULT_SIZE_PRESET } = props;
-
   return `
-    position: relative;
-    z-index: 0;
     display: grid;
-    gap: ${getSpacingValue(12)};
-    align-items: center;
-    inline-size: 100%;
-    min-block-size: ${getMinBlockSize(sizePreset)};
-    text-align: start;
-    background-color: ${theme.colors.surface};
-    [data-slot='label'] {
-      min-inline-size: 0;
-      z-index: 1;
-    }
-    &::before {
-      position: absolute;
-      inset: ${getSpacingValue(4)};
-      z-index: -1;
-      pointer-events: none;
-      content: '';
-      border-radius: calc(${resolveListboxBlockRadius(shape, sizePreset)} - ${getSpacingValue(4)});
-      ${getTransitionStyles('background-color', MOTION_CONTROL_DURATION)}
-    }
+    grid-template-rows: auto minmax(0, 1fr);
+    ${getListboxPanelChromeStyles(props)}
+    overflow: hidden;
   `;
 }
 
 /**
- * getListboxOptionButtonStyles — возвращает CSS-правила для узла
- * `StyledListboxOptionButton`: базовую поверхность, отступы и синюю подсветку.
- *
- * Как работает:
- * 1. Берёт базовую поверхность через `getListboxOptionSurfaceBaseStyles`: раскладку,
- *    габариты, заливку и подложку наведения через `::before`
- * 2. Задаёт колонки лейбла и галочки, отступы лейбла
- * 3. На `:not(:disabled):hover` и `:focus-visible` красит подложку и текст в
- *    `primary` / `inverse`, включая слот галочки
- *
- * @param props пропсы формы, размера и тема
- * @returns CSS-правила, каждое с новой строки
- */
-function getListboxOptionButtonStyles(
-  props: Pick<ListboxSurfaceStyleProps, 'shape' | 'sizePreset'> & { theme: AppTheme }
-): string {
-  const theme = getTheme(props);
-  const { sizePreset = DEFAULT_SIZE_PRESET } = props;
-
-  return `
-    ${getListboxOptionSurfaceBaseStyles(props)}
-    grid-template-columns: minmax(0, 1fr) auto;
-    padding-inline: ${getPaddingInline(sizePreset)};
-    &:focus { outline: none; }
-    &:not(:disabled):hover::before,
-    &:focus-visible::before {
-      background-color: ${theme.colors.primary};
-    }
-    &:not(:disabled):hover,
-    &:focus-visible {
-      color: ${theme.colors.inverse};
-    }
-    &:not(:disabled):hover [data-slot='check'],
-    &:focus-visible [data-slot='check'] {
-      color: ${theme.colors.inverse};
-    }
-  `;
-}
-
-/**
- * StyledListboxOptionButton — задаёт кнопку опции компонента Listbox.
- * Базируется на `<button>` и принимает пропсы `shape` и `sizePreset`.
+ * StyledListboxSearchPanel — задаёт панель поиска и списка опций компонента Listbox.
+ * Базируется на `<div>` и принимает пропсы `shape`, `size` и `appearance`.
  *
  * Генерация стилей:
- *  - `getListboxOptionButtonStyles` — поверхность, отступы и подсветка
+ *  - `getListboxSearchPanelStyles` — сетка поиска и списка, хром через
+ *    `getListboxPanelChromeStyles` и обрезка
  */
-export const StyledListboxOptionButton = styled.button.withConfig({
+export const StyledListboxSearchPanel = styled.div.withConfig({
   shouldForwardProp: (prop) => !LISTBOX_BOX_PROP_NAMES.has(prop),
-})<Pick<ListboxSurfaceStyleProps, 'shape' | 'sizePreset'>>`
-  ${(props) => getListboxOptionButtonStyles(props)}
+})<ListboxPanelStyleProps>`
+  ${(props) => getListboxSearchPanelStyles(props)}
 `;
 
 /**
- * getListboxOptionRowStyles — возвращает CSS-правила для узла `StyledListboxOptionRow`:
- * базовую поверхность опции, курсор и синюю подсветку наведения.
+ * getListboxListStyles — возвращает CSS-правила для узла `StyledListboxList`:
+ * столбик опций, отступы, ограничение высоты и прокрутку.
  *
  * Как работает:
- * 1. Берёт базовую поверхность через `getListboxOptionSurfaceBaseStyles`: раскладку,
- *    габариты, заливку и подложку наведения через `::before`
- * 2. Задаёт `cursor: pointer` на строке-метке: сброс даёт `pointer` только button
- * 3. Добавляет отступы и синюю подсветку при наведении и фокусе внутри
+ * 1. Подставляет дефолт `size`
+ * 2. Собирает столбик опций с отступами
+ * 3. Ограничивает высоту и включает прокрутку через
+ *    `getOpenControlOptionsListScrollStyles`
  *
- * @param props пропсы формы, размера и тема
+ * @param props пропсы размера
  * @returns CSS-правила, каждое с новой строки
  */
-function getListboxOptionRowStyles(
-  props: Pick<ListboxSurfaceStyleProps, 'shape' | 'sizePreset'> & { theme: AppTheme }
-): string {
-  const theme = getTheme(props);
-  const { sizePreset = DEFAULT_SIZE_PRESET } = props;
+function getListboxListStyles(props: Pick<ListboxSurfaceStyleProps, 'size'>): string {
+  const size = props.size ?? DEFAULT_SIZE_PRESET;
 
   return `
-    ${getListboxOptionSurfaceBaseStyles(props)}
-    grid-template-columns: auto minmax(0, 1fr);
+    display: grid;
+    min-block-size: 0;
+    padding-block: ${getSpacingValue(OPEN_CONTROL_SELECTABLE_INSET)};
+    padding-inline-end: ${getSpacingValue(8)};
+    ${getOpenControlOptionsListScrollStyles(size)}
+  `;
+}
+
+/**
+ * StyledListboxList — задаёт список опций в панели с поиском компонента Listbox.
+ * Базируется на `<ul>` и принимает проп `size`.
+ *
+ * Генерация стилей:
+ *  - `getListboxListStyles` — столбик, отступы, max-высота и прокрутка
+ */
+export const StyledListboxList = styled.ul.withConfig({
+  shouldForwardProp: (prop) => prop !== 'size',
+})<Pick<ListboxSurfaceStyleProps, 'size'>>`
+  ${(props) => getListboxListStyles(props)}
+`;
+
+/**
+ * getListboxOptionStyles — возвращает CSS-правила для узла `StyledListboxOption`:
+ * поверхность, отступы и акцентную подсветку активной строки.
+ *
+ * Как работает:
+ * 1. Подставляет поверхность через `getOpenControlSelectableRowSurfaceStyles`:
+ *    раскладку, габариты, заливку и подложку активной строки через `::before`
+ * 2. Задаёт колонки подписи и галочки, в режиме чекбокса — чекбокса и подписи
+ * 3. В режиме иконки опции переключает строку на flex: иконка не резервирует
+ *    трек, когда её нет
+ * 4. Гасит события на input в режиме чекбокса через `pointer-events: none`:
+ *    жест принимает строка
+ * 5. Задаёт `cursor: pointer` на строке: сброс даёт `pointer` только button
+ * 6. На `[data-active]` красит текст в `inverse` через
+ *    `getOpenControlActiveRowHighlightStyles`
+ * 7. На `[aria-disabled]` гасит строку и ставит `not-allowed`
+ *
+ * @param props пропсы формы, размера и темы
+ * @returns CSS-правила, каждое с новой строки
+ */
+function getListboxOptionStyles(
+  props: Pick<ListboxSurfaceStyleProps, 'shape' | 'size'> & { theme: AppTheme }
+): string {
+  const theme = getTheme(props);
+  const { size = DEFAULT_SIZE_PRESET } = props;
+
+  return `
+    ${getOpenControlSelectableRowSurfaceStyles(props, {
+      display: 'grid',
+      gap: OPEN_CONTROL_ROW_GAP,
+      highlight: 'primary',
+      highlightWhen: `&[data-active='true']::before`,
+    })}
+    grid-template-columns: minmax(0, 1fr) auto;
     cursor: pointer;
-    padding-inline: ${getPaddingInline(sizePreset)};
-    &:not(:has(input:disabled)):hover::before,
-    &:focus-within::before {
-      background-color: ${theme.colors.primary};
+    padding-inline: ${getPaddingInline(size)};
+    &[data-checkbox] {
+      grid-template-columns: auto minmax(0, 1fr);
     }
-    &:not(:has(input:disabled)):hover,
-    &:focus-within {
-      color: ${theme.colors.inverse};
+    &[data-checkbox] input {
+      pointer-events: none;
+    }
+    &[data-icon] {
+      display: flex;
+    }
+    ${getOpenControlActiveRowHighlightStyles(theme)}
+    &[aria-disabled] {
+      cursor: not-allowed;
+      opacity: ${DISABLED_OPACITY};
     }
   `;
 }
 
 /**
- * StyledListboxOptionRow — задаёт строку опции с чекбоксом компонента Listbox.
- * Базируется на `<label>` и принимает пропсы `shape` и `sizePreset`.
+ * StyledListboxOption — задаёт строку опции компонента Listbox.
+ * Базируется на `<li>` и принимает пропсы `shape` и `size`.
  *
  * Генерация стилей:
- *  - `getListboxOptionRowStyles` — поверхность, курсор и подсветка
+ *  - `getListboxOptionStyles` — поверхность, отступы и подсветка
  */
-export const StyledListboxOptionRow = styled.label.withConfig({
+export const StyledListboxOption = styled.li.withConfig({
   shouldForwardProp: (prop) => !LISTBOX_BOX_PROP_NAMES.has(prop),
-})<Pick<ListboxSurfaceStyleProps, 'shape' | 'sizePreset'>>`
-  ${(props) => getListboxOptionRowStyles(props)}
+})<Pick<ListboxSurfaceStyleProps, 'shape' | 'size'>>`
+  ${(props) => getListboxOptionStyles(props)}
 `;

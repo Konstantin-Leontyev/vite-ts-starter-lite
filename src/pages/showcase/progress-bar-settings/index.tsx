@@ -13,15 +13,13 @@
 
 import { type ChangeEvent } from 'react';
 
+import { Checkbox } from '@ui/checkbox';
 import { Input } from '@ui/input';
 import { SIZE_PRESET_KEYS, type SizePreset } from '@ui/presets';
-import { getProgressBarTextSize } from '@ui/progress-bar';
-import { type TextSizePreset, type TextTone } from '@ui/text';
 import { TONE_PRESET_KEYS, type TonePreset } from '@ui/tones';
 
 import { StyledSettingsForm } from '../showcase.styles';
 import { SizeListbox } from '../size-listbox';
-import { TextGroup } from '../text-group';
 import { ToneListbox } from '../tone-listbox';
 
 /**
@@ -30,19 +28,13 @@ import { ToneListbox } from '../tone-listbox';
  * Используется для синхронизации значений между панелью управления и демонстрационной полосой прогресса.
  *
  * @property showText — включает подпись с процентом выполнения
- * @property sizePreset — размер полосы
- * @property textItalic — включает курсив подписи
- * @property textSize — размер подписи
- * @property textTone — тон подписи
+ * @property size — размер полосы
  * @property tone — семантический тон заливки
  * @property value — доля заполнения от 0 до 1
  */
 export type ProgressBarWidgetState = {
   showText: boolean;
-  sizePreset: SizePreset;
-  textItalic: boolean;
-  textSize: TextSizePreset;
-  textTone: TextTone;
+  size: SizePreset;
   tone: TonePreset;
   value: number;
 };
@@ -97,11 +89,8 @@ export function ProgressBarSettings({ onChange, state }: ProgressBarSettingsProp
       <SizeListbox
         label="Size:"
         sizes={SIZE_PRESET_KEYS}
-        value={state.sizePreset}
-        onChange={(size) => {
-          onChange('sizePreset', size);
-          onChange('textSize', getProgressBarTextSize(size));
-        }}
+        value={state.size}
+        onChange={(size) => onChange('size', size)}
       />
 
       <ToneListbox
@@ -118,25 +107,17 @@ export function ProgressBarSettings({ onChange, state }: ProgressBarSettingsProp
         onChange={(event: ChangeEvent<HTMLInputElement>) =>
           onChange('value', parseValueFromPercent(event.target.value))
         }
+        onClear={() => onChange('value', parseValueFromPercent(''))}
       />
 
-      <TextGroup
-        italic={state.textItalic}
-        show={{
-          checked: state.showText,
-          onChange: (checked) => onChange('showText', checked),
-        }}
-        size={state.textSize}
-        tones={[
-          {
-            label: 'Text tone:',
-            value: state.textTone,
-            onChange: (tone) => onChange('textTone', tone),
-          },
-        ]}
-        onItalicChange={(value) => onChange('textItalic', value)}
-        onSizeChange={(size) => onChange('textSize', size)}
-      />
+      <Checkbox
+        checked={state.showText}
+        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+          onChange('showText', event.target.checked)
+        }
+      >
+        Show text
+      </Checkbox>
     </StyledSettingsForm>
   );
 }

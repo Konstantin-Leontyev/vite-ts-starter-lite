@@ -8,23 +8,29 @@
  * Основные задачи:
  * 1. Экспортировать компонент ProfileMenu
  * 2. Типизировать пропсы через `ProfileMenuProps`
- * 3. Выставлять `role` и `aria`-атрибуты панели и триггера
+ * 3. Выставлять `role` и `aria`-атрибуты панели и триггера.
+ *    Фокус при открытии — на сегмент Profile: первое содержательное действие
+ *    текущей разметки
  *
  * Потребители:
  *  - `src/components/header/index.tsx` — рендерит меню профиля в шапке
  */
 
-import { Fragment, useId, useRef, useState, type ComponentPropsWithRef } from 'react';
+import {
+  Fragment,
+  useId,
+  useRef,
+  type ComponentPropsWithRef,
+  type KeyboardEvent,
+} from 'react';
 
+import { useAnchoredOpen } from '@hooks/use-anchored-open';
 import { AddCircleIcon, AvatarIcon, CloseIcon, SignOutIcon } from '@icons';
-import { AnchoredPortal } from '@ui/anchored-portal';
-import { Card } from '@ui/card';
+import { AnchoredPanel } from '@ui/anchored-panel';
 import { Icon } from '@ui/icon';
 import { SegmentButton } from '@ui/segment-button';
 import { getSpacingValue } from '@ui/spacing';
-import { STACKING_PROFILE_MENU } from '@ui/stacking';
 import { Text } from '@ui/text';
-import { PORTAL_VIEWPORT_EDGE_INSET } from '@ui/viewport';
 
 import {
   StyledProfileMenu,
@@ -32,6 +38,7 @@ import {
   StyledProfileMenuHeader,
   StyledProfileMenuLegal,
   StyledProfileMenuLegalLink,
+  StyledProfileMenuPanel,
   type ProfileMenuStyleProps,
 } from './profile-menu.styles';
 
@@ -93,7 +100,7 @@ const PROFILE_MENU_PANEL_MIN_INLINE_SIZE_PX = 360;
 
 /**
  * PROFILE_MENU_VIEWPORT_INLINE_GUTTER — задаёт суммарный горизонтальный зазор панели
- * от краёв вьюпорта (по `32` с каждой стороны).
+ * от краёв вьюпорта по `32` с каждой стороны.
  * Используется в `PROFILE_MENU_MAX_INLINE_SIZE`.
  */
 const PROFILE_MENU_VIEWPORT_INLINE_GUTTER = `calc(${getSpacingValue(32)} * 2)`;
@@ -112,42 +119,6 @@ const PROFILE_MENU_MAX_INLINE_SIZE = `calc(100vw - ${PROFILE_MENU_VIEWPORT_INLIN
 const PROFILE_MENU_INLINE_SIZE = `min(${PROFILE_MENU_PANEL_MIN_INLINE_SIZE_PX}px, ${PROFILE_MENU_MAX_INLINE_SIZE})`;
 
 /**
- * PROFILE_MENU_TRIGGER_GAP_PX — задаёт зазор между триггером и панелью в px.
- * Совпадает с ключом шкалы отступов `12` из `@ui/spacing`.
- * Используется в `applyProfileMenuPanelPosition`.
- */
-const PROFILE_MENU_TRIGGER_GAP_PX = 12;
-
-/**
- * applyProfileMenuPanelPosition — позиционирует панель меню относительно триггера.
- *
- * Как работает:
- * 1. Берёт прямоугольник триггера через `getBoundingClientRect`
- * 2. Ставит верх панели ниже триггера на `PROFILE_MENU_TRIGGER_GAP_PX`
- * 3. Выравнивает правый край панели с правым краем триггера
- * 4. Считает доступную высоту до нижнего края вьюпорта с учётом
- *    `PORTAL_VIEWPORT_EDGE_INSET`
- * 5. Задаёт панели `max-block-size` и включает вертикальный скролл
- *
- * @param anchor элемент-триггер меню
- * @param panel элемент панели меню
- */
-function applyProfileMenuPanelPosition(anchor: HTMLElement, panel: HTMLElement): void {
-  const triggerRect = anchor.getBoundingClientRect();
-  const top = triggerRect.bottom + PROFILE_MENU_TRIGGER_GAP_PX;
-  const maxBlockSize = Math.max(
-    0,
-    window.innerHeight - top - PORTAL_VIEWPORT_EDGE_INSET
-  );
-
-  panel.style.insetBlockStart = `${top}px`;
-  panel.style.insetInlineEnd = `${window.innerWidth - triggerRect.right}px`;
-  panel.style.insetInlineStart = 'auto';
-  panel.style.maxBlockSize = `${maxBlockSize}px`;
-  panel.style.overflowY = 'auto';
-}
-
-/**
  * ProfileMenuProps — представляет пропсы компонента ProfileMenu.
  */
 type ProfileMenuProps = ProfileMenuStyleProps &
@@ -163,19 +134,23 @@ type ProfileMenuProps = ProfileMenuStyleProps &
  * <ProfileMenu />
  */
 export function ProfileMenu(props: ProfileMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const { handleClose, handleOpen, handleToggle, isOpen, panelRef } =
+    useAnchoredOpen<HTMLDivElement>();
   const menuId = useId();
   const titleId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const profileActionRef = useRef<HTMLButtonElement>(null);
   const { displayEmail, displayName } = PROFILE_STUB;
 
-  function handleClose(): void {
-    setIsOpen(false);
+  function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>): void {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      handleOpen();
+    }
   }
 
-  function handleToggle(): void {
-    setIsOpen((current) => !current);
+  function handleOpenFocus(): void {
+    profileActionRef.current?.focus();
   }
 
   return (
@@ -190,22 +165,21 @@ export function ProfileMenu(props: ProfileMenuProps) {
         shape="round"
         title={displayEmail}
         onClick={handleToggle}
+        onKeyDown={handleTriggerKeyDown}
       >
         <AvatarIcon />
       </Icon>
 
-      <AnchoredPortal
+      <AnchoredPanel
+        anchorRef={triggerRef}
         dismissZoneRefs={[triggerRef, panelRef]}
         open={isOpen}
         panelRef={panelRef}
-        positionStrategy={{
-          anchorRef: triggerRef,
-          apply: applyProfileMenuPanelPosition,
-        }}
         returnFocusRef={triggerRef}
         onDismiss={handleClose}
+        onOpenFocus={handleOpenFocus}
       >
-        <Card
+        <StyledProfileMenuPanel
           aria-labelledby={titleId}
           aria-modal={true}
           headerActions={[
@@ -225,7 +199,6 @@ export function ProfileMenu(props: ProfileMenuProps) {
           role="dialog"
           subtitle={displayEmail}
           subtitleAlign="center"
-          zIndex={STACKING_PROFILE_MENU}
         >
           <StyledProfileMenuContent>
             <StyledProfileMenuHeader>
@@ -239,7 +212,7 @@ export function ProfileMenu(props: ProfileMenuProps) {
               >
                 <AvatarIcon />
               </Icon>
-              <Text align="center" as="p" id={titleId} sizePreset="extraBold">
+              <Text align="center" as="p" id={titleId} size="extraBold">
                 Hello, {displayName}!
               </Text>
             </StyledProfileMenuHeader>
@@ -250,6 +223,7 @@ export function ProfileMenu(props: ProfileMenuProps) {
                 iconFill: 'primary',
                 iconPosition: 'start',
                 label: 'Profile',
+                ref: profileActionRef,
                 onClick: handleClose,
               }}
               marginBlockStart={PROFILE_MENU_ACTIONS_MARGIN_BLOCK_START}
@@ -271,7 +245,7 @@ export function ProfileMenu(props: ProfileMenuProps) {
                     </Text>
                   )}
                   <StyledProfileMenuLegalLink to={link.to} onClick={handleClose}>
-                    <Text align="center" sizePreset="thin">
+                    <Text align="center" size="thin">
                       {link.label}
                     </Text>
                   </StyledProfileMenuLegalLink>
@@ -279,8 +253,8 @@ export function ProfileMenu(props: ProfileMenuProps) {
               ))}
             </StyledProfileMenuLegal>
           </StyledProfileMenuContent>
-        </Card>
-      </AnchoredPortal>
+        </StyledProfileMenuPanel>
+      </AnchoredPanel>
     </StyledProfileMenu>
   );
 }

@@ -1,32 +1,39 @@
 /**
  * Файл: `src/hooks/use-focus.ts`
- * Предоставляет удержание фокуса клавишей `Tab` внутри контейнера и выбор фокусируемых узлов.
+ * Предоставляет удержание фокуса клавишей `Tab` внутри контейнера.
  *
  * Основные задачи:
- * 1. Предоставить функцию `getFocusables`
- * 2. Предоставить хук `useFocus`
+ * 1. Предоставить хук `useFocus`
  *
  * Потребители:
- *  - `@ui/anchored-portal` — удерживает фокус внутри открытой панели через `useFocus`
- *  - `@ui/listbox` — находит фокусируемые кнопки в панели через `getFocusables`
+ *  - `@ui/anchored-panel` — удерживает фокус внутри открытой панели через `useFocus`
  */
 
 import { useEffect, useRef, type RefObject } from 'react';
 
 /**
- * FOCUSABLE_SELECTOR — задаёт CSS-селектор фокусируемых элементов внутри контейнера.
- * Используется в `getFocusables` для поиска фокусируемых узлов.
+ * FOCUSABLE_SELECTOR — задаёт CSS-селектор остановок обхода клавишей `Tab`.
+ * Узлы с `tabindex="-1"` исключены: в зонах с блуждающим фокусом такой узел
+ * фокусируется программно, но остановкой обхода не является.
  */
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'textarea:not([disabled])',
+  'select:not([disabled])',
+  '[tabindex]',
+]
+  .map((selector) => `${selector}:not([tabindex="-1"])`)
+  .join(', ');
 
 /**
- * getFocusables — возвращает фокусируемые элементы внутри контейнера.
+ * getFocusables — возвращает остановки обхода клавишей `Tab` внутри контейнера.
  *
  * @param container корневой DOM-узел поиска
- * @returns перечень фокусируемых элементов в порядке обхода DOM
+ * @returns перечень остановок обхода в порядке обхода DOM
  */
-export function getFocusables(container: HTMLElement): HTMLElement[] {
+function getFocusables(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
 }
 

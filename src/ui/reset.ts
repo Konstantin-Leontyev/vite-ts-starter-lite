@@ -28,7 +28,8 @@ const APP_MIN_INLINE_SIZE = '320px';
  * `${normalize}` вставляет базовый сброс из styled-normalize.
  * Последующие правила переопределяют и дополняют его.
  * Подключается в `ThemeProvider` из `src/context/theme/index.tsx`:
- * сначала `GlobalResetStyle`, затем `GlobalThemeStyle`.
+ * сначала `GlobalResetStyle`, затем `GlobalThemeStyle`,
+ * затем `AnchoredPanelPositionTryStyle`.
  *
  * Устанавливает:
  *  - `box-sizing: border-box` для всех элементов
@@ -43,7 +44,16 @@ const APP_MIN_INLINE_SIZE = '320px';
  *  - сброс UA `padding-block` у `input`, `textarea` и `select` —
  *    высоту однострочного контрола держит `min-block-size`, вертикальный
  *    отступ задаёт компонент при многострочной модели
+ *  - цвет `::placeholder` — `muted` из темы
  *  - сброс дефолтных рамок и фона кнопок
+ *  - сброс UA `[popover]` — нейтрализует дефолтные `inset`, `width`, `height`,
+ *    `margin`, `border` и `color`. Блок объявлен в слое каскада `ua-reset`:
+ *    у селектора `[popover]` та же специфичность, что у класса компонента, и без
+ *    слоя побеждал бы сброс — он идёт в таблице стилей ниже и обнулял отступы
+ *    панелей с CSS-привязкой к якорю. Слой проигрывает правилам компонентов вне
+ *    слоёв и по-прежнему выигрывает у стилей браузера. `padding`, `overflow` и
+ *    `background-color` остаются моделью компонента. Позицию и хром задают
+ *    потребители, например `getAnchoredPanelStyles`, `StyledToastViewport` и Card
  *  - состояния `disabled` — курсор и прозрачность из `DISABLED_OPACITY`.
  *    Три контракта. `:disabled` — сам нативный элемент. `label:has(:disabled)` —
  *    label-обёртка контрола с подписью. `[data-disabled]` — оболочка композитного
@@ -132,11 +142,26 @@ export const GlobalResetStyle = createGlobalStyle`
     padding-block: 0;
   }
 
+  ::placeholder {
+    color: ${(props) => getTheme(props).colors.muted};
+  }
+
   button {
     padding: 0;
     cursor: pointer;
     background: transparent;
     border: none;
+  }
+
+  @layer ua-reset {
+    [popover] {
+      inset: auto;
+      width: auto;
+      height: auto;
+      margin: 0;
+      color: inherit;
+      border: none;
+    }
   }
 
   button:disabled,

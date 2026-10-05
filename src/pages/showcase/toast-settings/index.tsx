@@ -12,8 +12,6 @@
  */
 
 import { SIZE_PRESET_KEYS, type SizePreset } from '@ui/presets';
-import { type TextSizePreset, type TextTone } from '@ui/text';
-import { getToastTextSize } from '@ui/toast';
 import { TONE_PRESET_KEYS, type TonePreset } from '@ui/tones';
 
 import { StyledSettingsForm } from '../showcase.styles';
@@ -29,18 +27,12 @@ import { ToneListbox } from '../tone-listbox';
  * Используется для синхронизации значений между панелью управления и демонстрационным уведомлением.
  *
  * @property message — текст сообщения в уведомлении
- * @property sizePreset — размер уведомления
- * @property textItalic — включает курсив текста сообщения
- * @property textSize — размер текста сообщения
- * @property textTone — тон текста сообщения
+ * @property size — размер уведомления
  * @property tone — семантический тон уведомления
  */
 export type ToastWidgetState = {
   message: string;
-  sizePreset: SizePreset;
-  textItalic: boolean;
-  textSize: TextSizePreset;
-  textTone: TextTone;
+  size: SizePreset;
   tone: TonePreset;
 };
 
@@ -70,11 +62,8 @@ export function ToastSettings({ onChange, state }: ToastSettingsProps) {
       <SizeListbox
         label="Size:"
         sizes={SIZE_PRESET_KEYS}
-        value={state.sizePreset}
-        onChange={(size) => {
-          onChange('sizePreset', size);
-          onChange('textSize', getToastTextSize(size));
-        }}
+        value={state.size}
+        onChange={(size) => onChange('size', size)}
       />
 
       <ToneListbox
@@ -87,22 +76,11 @@ export function ToastSettings({ onChange, state }: ToastSettingsProps) {
       <TextGroup
         contents={[
           {
-            label: 'Text:',
             value: state.message,
             onChange: (value) => onChange('message', value),
           },
         ]}
-        italic={state.textItalic}
-        size={state.textSize}
-        tones={[
-          {
-            label: 'Text tone:',
-            value: state.textTone,
-            onChange: (tone) => onChange('textTone', tone),
-          },
-        ]}
-        onItalicChange={(value) => onChange('textItalic', value)}
-        onSizeChange={(size) => onChange('textSize', size)}
+        labelPrefix="Text"
       />
     </StyledSettingsForm>
   );

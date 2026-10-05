@@ -4,8 +4,9 @@
  *
  * Поддерживает:
  *  - layout-пропсы: отступы, позиционирование, размеры
- *  - размерный ряд через проп `sizePreset`
+ *  - размерный ряд через проп `size`
  *  - форму поля через проп `shape`
+ *  - тон рамки через проп `borderTone`
  *  - числовое значение через проп `value`
  *  - обработчик изменения значения через проп `onChange`
  *  - обработчик фиксации значения через проп `onCommit`
@@ -13,10 +14,6 @@
  *  - верхнюю границу через проп `max`
  *  - шаг изменения через проп `step`
  *  - подпись единицы внутри поля через проп `suffix`
- *  - тон значения и суффикса через проп `textTone`
- *  - размер значения и суффикса через проп `textSize`
- *  - курсив значения и суффикса через проп `textItalic`
- *  - горизонтальное выравнивание пары «значение + суффикс» через проп `textAlign`
  *  - подпись над полем через проп `label`
  *  - текстовую метку через проп `aria-label`
  *  - id метки через проп `aria-labelledby`
@@ -25,7 +22,6 @@
  * 1. Экспортировать компонент Stepper
  * 2. Типизировать пропсы через `StepperProps`
  * 3. Выставлять `role="spinbutton"` и атрибуты `aria-valuenow`, `aria-valuemin`, `aria-valuemax`
- * 4. Реэкспортировать мост размера текста `getStepperTextSize`
  *
  * Потребители:
  *  - `src/pages/showcase/stepper-settings/index.tsx` — выбирает шаг в панели настроек
@@ -45,8 +41,10 @@ import {
 import { ChevronDownIcon, ChevronUpIcon } from '@icons';
 import { FieldLabel } from '@ui/field-label';
 import { Icon } from '@ui/icon';
+import { getTextSize } from '@ui/presets';
+import { assignRef } from '@ui/ref';
 import { type SpacingValue } from '@ui/spacing';
-import { Text, type TextTone } from '@ui/text';
+import { Text, type TextTonePreset } from '@ui/text';
 
 import {
   StyledStepperButton,
@@ -55,7 +53,6 @@ import {
   StyledStepperRoot,
   StyledStepperSpin,
   StyledStepperValue,
-  getStepperTextSize,
   splitLayoutProps,
   type StepperStyleProps,
 } from './stepper.styles';
@@ -67,10 +64,10 @@ import {
 const DEFAULT_STEPPER_STEP = 1;
 
 /**
- * DEFAULT_STEPPER_SUFFIX_TONE — задаёт тон суффикса по умолчанию.
+ * STEPPER_SUFFIX_TONE — задаёт тон суффикса.
  * Суффикс единицы — вторичный текст, поэтому `muted`.
  */
-const DEFAULT_STEPPER_SUFFIX_TONE: TextTone = 'muted';
+const STEPPER_SUFFIX_TONE: TextTonePreset = 'muted';
 
 /**
  * DECREASE_LABEL — задаёт текст `aria-label` кнопки уменьшения.
@@ -108,8 +105,7 @@ const STEP_REPEAT_INTERVAL_MS = 60;
  *
  * @property aria-label — текстовая метка поля
  * @property aria-labelledby — id элемента с меткой поля
- * @property label — подпись над полем; при передаче выставляет `aria-labelledby`
- *   на spinbutton через `resolvedLabelledBy`
+ * @property label — подпись над полем
  */
 type StepperAccessibleName =
   | { 'aria-label': string; 'aria-labelledby'?: never; label?: never }
@@ -161,11 +157,12 @@ type StepperProps = StepperStyleProps &
  * <Stepper label="Quantity:" value={1} onChange={setValue} />
  * <Stepper aria-label="Quantity" value={1} onChange={setValue} />
  * <Stepper aria-labelledby="qty-label" min={0} max={10} step={1} value={5} onChange={setValue} />
- * <Stepper sizePreset="normal" suffix="K" textAlign="start" value={100} onChange={setValue} />
+ * <Stepper size="normal" suffix="K" value={100} onChange={setValue} />
  */
 export function Stepper({
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
+  borderTone,
   disabled,
   label,
   max,
@@ -173,22 +170,17 @@ export function Stepper({
   onChange,
   onCommit,
   shape,
-  sizePreset,
+  size,
   step = DEFAULT_STEPPER_STEP,
   suffix,
-  textAlign,
-  textItalic,
-  textSize,
-  textTone,
   value,
   ...rest
 }: StepperProps) {
   const { layoutProps, restProps } = splitLayoutProps(rest);
+  const { ref, ...inputProps } = restProps;
+  const inputRef = useRef<HTMLInputElement>(null);
   const labelId = useId();
   const resolvedLabelledBy = label ? labelId : ariaLabelledBy;
-
-  // Размер пары «значение + суффикс» вычисляется один раз: поле и Text получают готовое значение
-  const resolvedTextSize = textSize ?? getStepperTextSize(sizePreset);
 
   // Если draft не null, пользователь печатает, иначе показывается актуальное value
   const [draft, setDraft] = useState<null | string>(null);
@@ -334,28 +326,40 @@ export function Stepper({
 
   useEffect(() => stopHold, [stopHold]);
 
+  // Клик по ячейке значения ставит фокус в поле, иначе суффикс перехватывает клик
+  const handleValueClick = (): void => {
+    if (disabled) {
+      return;
+    }
+
+    inputRef.current?.focus();
+  };
+
   return (
     <StyledStepperFieldRoot {...layoutProps}>
       <FieldLabel id={labelId}>{label}</FieldLabel>
       <StyledStepperRoot
-        data-disabled={disabled ? '' : undefined}
+        borderTone={borderTone}
+        data-disabled={disabled ? true : undefined}
         shape={shape}
-        sizePreset={sizePreset}
+        size={size}
       >
-        <StyledStepperValue sizePreset={sizePreset} textAlign={textAlign}>
+        <StyledStepperValue size={size} onClick={handleValueClick}>
           <StyledStepperInput
             inputMode="numeric"
-            textItalic={textItalic}
-            textSize={resolvedTextSize}
-            textTone={textTone}
-            {...restProps}
+            {...inputProps}
             aria-label={ariaLabel}
             aria-labelledby={resolvedLabelledBy}
             aria-valuemax={max}
             aria-valuemin={min}
             aria-valuenow={value}
             disabled={disabled}
+            ref={(node) => {
+              inputRef.current = node;
+              assignRef(ref, node);
+            }}
             role="spinbutton"
+            size={size}
             type="text"
             value={draft ?? String(value)}
             onBlur={handleBlur}
@@ -363,21 +367,17 @@ export function Stepper({
             onKeyDown={handleKeyDown}
           />
           {Boolean(suffix) && (
-            <Text
-              italic={textItalic}
-              sizePreset={resolvedTextSize}
-              tone={textTone ?? DEFAULT_STEPPER_SUFFIX_TONE}
-            >
+            <Text size={getTextSize(size)} tone={STEPPER_SUFFIX_TONE}>
               {suffix}
             </Text>
           )}
         </StyledStepperValue>
 
-        <StyledStepperSpin sizePreset={sizePreset}>
+        <StyledStepperSpin size={size}>
           <StyledStepperButton
             aria-label={INCREASE_LABEL}
             disabled={disabled}
-            sizePreset={sizePreset}
+            size={size}
             type="button"
             onClick={handleIncreaseClick}
             onPointerDown={handleIncreasePointerDown}
@@ -396,7 +396,7 @@ export function Stepper({
           <StyledStepperButton
             aria-label={DECREASE_LABEL}
             disabled={disabled}
-            sizePreset={sizePreset}
+            size={size}
             type="button"
             onClick={handleDecreaseClick}
             onPointerDown={handleDecreasePointerDown}
@@ -417,6 +417,3 @@ export function Stepper({
     </StyledStepperFieldRoot>
   );
 }
-
-/* eslint-disable react-refresh/only-export-components -- реэкспорт моста размера текста */
-export { getStepperTextSize };

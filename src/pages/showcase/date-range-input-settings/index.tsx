@@ -1,9 +1,8 @@
 /**
  * Файл: `src/pages/showcase/date-range-input-settings/index.tsx`
  * Определяет панель настроек компонента DateRangeInput в витрине дизайн-системы.
- * Содержит контролы для изменения подписи, размера, формы, текстов `title` сегментов,
- * границ диапазона, границ дней, формы подсветки дня и состояния `disabled`
- * в реальном времени.
+ * Содержит контролы для изменения подписи, размера, формы, границ дней,
+ * формы подсветки дня, формы кнопок подвала и состояния `disabled` в реальном времени.
  *
  * Основные задачи:
  * 1. Типизировать состояние витрины через `DateRangeInputWidgetState`
@@ -28,30 +27,28 @@ import { StyledSettingsForm } from '../showcase.styles';
  * Ключи совпадают с именами пропов компонента DateRangeInput.
  * Используется для синхронизации значений между панелью управления и демонстрационным DateRangeInput.
  *
- * @property dayShape — форма подсветки дня в панели. Без значения превью берёт `shape`
+ * @property buttonShape — форма кнопок подвала панели. Стартует с формы контрола
+ * @property dayShape — форма подсветки дня в панели. Стартует с формы контрола
  * @property disabled — включает недоступное состояние
- * @property endDay — конечный день диапазона в превью в формате ISO
- * @property endLabel — текст `title` конечного сегмента и фрагмент `aria-label` сброса
+ * @property endDay — буфер конечного дня диапазона в превью. В панель не выносится
  * @property label — подпись над рядом сегментов
  * @property maxDay — верхняя граница допустимых дней в формате ISO
  * @property minDay — нижняя граница допустимых дней в формате ISO
  * @property shape — форма поверхности
- * @property sizePreset — размер компонента
- * @property startDay — начальный день диапазона в превью в формате ISO
- * @property startLabel — текст `title` начального сегмента и фрагмент `aria-label` сброса
+ * @property size — размер компонента
+ * @property startDay — буфер начального дня диапазона в превью. В панель не выносится
  */
 export type DateRangeInputWidgetState = {
-  dayShape?: ShapePreset;
+  buttonShape: ShapePreset;
+  dayShape: ShapePreset;
   disabled: boolean;
   endDay: string;
-  endLabel: string;
   label: string;
   maxDay: string;
   minDay: string;
   shape: ShapePreset;
-  sizePreset: SizePreset;
+  size: SizePreset;
   startDay: string;
-  startLabel: string;
 };
 
 /**
@@ -83,42 +80,14 @@ export function DateRangeInputSettings({
       <ControlGroup
         label={state.label}
         shape={state.shape}
-        sizePreset={state.sizePreset}
+        size={state.size}
         onLabelChange={(label) => onChange('label', label)}
-        onShapeChange={(shape) => onChange('shape', shape)}
-        onSizeChange={(size) => onChange('sizePreset', size)}
-      />
-
-      <Input
-        label="Start label:"
-        value={state.startLabel}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          onChange('startLabel', event.target.value);
+        onShapeChange={(shape) => {
+          onChange('shape', shape);
+          onChange('dayShape', shape);
+          onChange('buttonShape', shape);
         }}
-      />
-
-      <Input
-        label="End label:"
-        value={state.endLabel}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          onChange('endLabel', event.target.value);
-        }}
-      />
-
-      <Input
-        label="Start day:"
-        value={state.startDay}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          onChange('startDay', event.target.value);
-        }}
-      />
-
-      <Input
-        label="End day:"
-        value={state.endDay}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          onChange('endDay', event.target.value);
-        }}
+        onSizeChange={(size) => onChange('size', size)}
       />
 
       <Input
@@ -127,6 +96,7 @@ export function DateRangeInputSettings({
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           onChange('minDay', event.target.value);
         }}
+        onClear={() => onChange('minDay', '')}
       />
 
       <Input
@@ -135,13 +105,21 @@ export function DateRangeInputSettings({
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           onChange('maxDay', event.target.value);
         }}
+        onClear={() => onChange('maxDay', '')}
       />
 
       <ShapeListbox
         label="Day shape:"
         shapes={SHAPE_PRESET_KEYS}
-        value={state.dayShape ?? state.shape}
+        value={state.dayShape}
         onChange={(shape) => onChange('dayShape', shape)}
+      />
+
+      <ShapeListbox
+        label="Button shape:"
+        shapes={SHAPE_PRESET_KEYS}
+        value={state.buttonShape}
+        onChange={(shape) => onChange('buttonShape', shape)}
       />
 
       <Checkbox

@@ -2,7 +2,7 @@
  * Файл: `src/pages/showcase/segment-button-settings/index.tsx`
  * Определяет панель настроек компонента SegmentButton в витрине дизайн-системы.
  * Содержит контролы для изменения подписи, размера, формы, числа сегментов,
- * тона сегментов, иконок, текста, типографики и состояний `active` и `disabled`
+ * тона сегментов, иконок, текста и состояний `active` и `disabled`
  * в реальном времени.
  *
  * Основные задачи:
@@ -19,13 +19,12 @@ import { Checkbox } from '@ui/checkbox';
 import { type IconPosition } from '@ui/icon';
 import { Listbox, type ListboxOption } from '@ui/listbox';
 import { type ShapePreset, type SizePreset } from '@ui/presets';
-import { getSegmentButtonTextSize } from '@ui/segment-button';
-import { type TextSizePreset, type TextTone } from '@ui/text';
+import { type TextTonePreset } from '@ui/text';
 import { TONE_PRESET_KEYS, type TonePreset } from '@ui/tones';
 
 import { ControlGroup } from '../control-group';
 import { IconGroup } from '../icon-group';
-import { COMBOBOX_OPTIONS, type IconKey } from '../showcase-icon-options';
+import { ICON_OPTIONS, type IconKey } from '../showcase-icon-options';
 import { StyledSettingsForm } from '../showcase.styles';
 import { TextGroup } from '../text-group';
 import { ToneListbox } from '../tone-listbox';
@@ -68,9 +67,7 @@ import { ToneListbox } from '../tone-listbox';
  * @property rightWithIcon — витринный ключ показа иконки правого сегмента. Выключенный — сегмент без иконки
  * @property segmentCount — витринный ключ числа сегментов в превью
  * @property shape — форма оболочки ряда
- * @property sizePreset — размер компонента
- * @property textItalic — включает курсив текста сегмента
- * @property textSize — размер текста сегмента
+ * @property size — размер компонента
  */
 export type SegmentButtonWidgetState = {
   centerActive: boolean;
@@ -79,7 +76,7 @@ export type SegmentButtonWidgetState = {
   centerIconKey: IconKey;
   centerIconPosition: IconPosition;
   centerLabel: string;
-  centerTextTone: TextTone;
+  centerTextTone: TextTonePreset;
   centerTone: TonePreset;
   centerWithIcon: boolean;
   label: string;
@@ -89,7 +86,7 @@ export type SegmentButtonWidgetState = {
   leftIconKey: IconKey;
   leftIconPosition: IconPosition;
   leftLabel: string;
-  leftTextTone: TextTone;
+  leftTextTone: TextTonePreset;
   leftTone: TonePreset;
   leftWithIcon: boolean;
   rightActive: boolean;
@@ -98,14 +95,12 @@ export type SegmentButtonWidgetState = {
   rightIconKey: IconKey;
   rightIconPosition: IconPosition;
   rightLabel: string;
-  rightTextTone: TextTone;
+  rightTextTone: TextTonePreset;
   rightTone: TonePreset;
   rightWithIcon: boolean;
   segmentCount: '2' | '3';
   shape: ShapePreset;
-  sizePreset: SizePreset;
-  textItalic: boolean;
-  textSize: TextSizePreset;
+  size: SizePreset;
 };
 
 /**
@@ -143,13 +138,10 @@ export function SegmentButtonSettings({ onChange, state }: SegmentButtonSettings
       <ControlGroup
         label={state.label}
         shape={state.shape}
-        sizePreset={state.sizePreset}
+        size={state.size}
         onLabelChange={(label) => onChange('label', label)}
         onShapeChange={(shape) => onChange('shape', shape)}
-        onSizeChange={(size) => {
-          onChange('sizePreset', size);
-          onChange('textSize', getSegmentButtonTextSize(size));
-        }}
+        onSizeChange={(size) => onChange('size', size)}
       />
 
       <Listbox
@@ -170,7 +162,7 @@ export function SegmentButtonSettings({ onChange, state }: SegmentButtonSettings
 
       <IconGroup
         fill={state.leftIconFill}
-        iconOptions={COMBOBOX_OPTIONS}
+        iconOptions={ICON_OPTIONS}
         iconValue={state.leftIconKey}
         labelPrefix="Left icon"
         position={state.leftIconPosition}
@@ -192,7 +184,7 @@ export function SegmentButtonSettings({ onChange, state }: SegmentButtonSettings
 
           <IconGroup
             fill={state.centerIconFill}
-            iconOptions={COMBOBOX_OPTIONS}
+            iconOptions={ICON_OPTIONS}
             iconValue={state.centerIconKey}
             labelPrefix="Center icon"
             position={state.centerIconPosition}
@@ -214,7 +206,7 @@ export function SegmentButtonSettings({ onChange, state }: SegmentButtonSettings
 
       <IconGroup
         fill={state.rightIconFill}
-        iconOptions={COMBOBOX_OPTIONS}
+        iconOptions={ICON_OPTIONS}
         iconValue={state.rightIconKey}
         labelPrefix="Right icon"
         position={state.rightIconPosition}
@@ -228,50 +220,51 @@ export function SegmentButtonSettings({ onChange, state }: SegmentButtonSettings
       <TextGroup
         contents={[
           {
-            label: 'Left text:',
             value: state.leftLabel,
             onChange: (value) => onChange('leftLabel', value),
           },
-          ...(state.segmentCount === '3'
-            ? [
-                {
-                  label: 'Center text:',
-                  value: state.centerLabel,
-                  onChange: (value: string) => onChange('centerLabel', value),
-                },
-              ]
-            : []),
+        ]}
+        labelPrefix="Left text"
+        tones={[
           {
-            label: 'Right text:',
+            value: state.leftTextTone,
+            onChange: (tone) => onChange('leftTextTone', tone),
+          },
+        ]}
+      />
+
+      {state.segmentCount === '3' && (
+        <TextGroup
+          contents={[
+            {
+              value: state.centerLabel,
+              onChange: (value) => onChange('centerLabel', value),
+            },
+          ]}
+          labelPrefix="Center text"
+          tones={[
+            {
+              value: state.centerTextTone,
+              onChange: (tone) => onChange('centerTextTone', tone),
+            },
+          ]}
+        />
+      )}
+
+      <TextGroup
+        contents={[
+          {
             value: state.rightLabel,
             onChange: (value) => onChange('rightLabel', value),
           },
         ]}
-        italic={state.textItalic}
-        size={state.textSize}
+        labelPrefix="Right text"
         tones={[
           {
-            label: 'Left text tone:',
-            value: state.leftTextTone,
-            onChange: (tone) => onChange('leftTextTone', tone),
-          },
-          ...(state.segmentCount === '3'
-            ? [
-                {
-                  label: 'Center text tone:',
-                  value: state.centerTextTone,
-                  onChange: (tone: TextTone) => onChange('centerTextTone', tone),
-                },
-              ]
-            : []),
-          {
-            label: 'Right text tone:',
             value: state.rightTextTone,
             onChange: (tone) => onChange('rightTextTone', tone),
           },
         ]}
-        onItalicChange={(value) => onChange('textItalic', value)}
-        onSizeChange={(size) => onChange('textSize', size)}
       />
 
       <Checkbox

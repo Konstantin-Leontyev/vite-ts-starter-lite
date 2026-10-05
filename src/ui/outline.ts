@@ -11,11 +11,13 @@
  * Потребители:
  *  - `src/ui/reset.ts` — задаёт глобальную обводку `:focus-visible` и полей
  *    с `aria-invalid="true"` через `getOutlineStyles`
- *  - styles-файлы контролов и панелей, например Switch, Stepper, Table
- *    и AnchoredPortal — подставляют обводку через `getOutlineStyles`
- *  - оболочки ряда с `:focus-within` — рисуют фокус-контур через `getOutlineStyles`:
+ *  - styles-файлы контролов и панелей, например Switch и AnchoredPanel —
+ *    подставляют обводку через `getOutlineStyles`
+ *  - оболочки с `&:has(:focus-visible)` — рисуют фокус-контур через `getOutlineStyles`:
+ *    - `src/ui/open-control.ts`
+ *    - `src/ui/search-field/search-field.styles.ts`
  *    - `src/ui/segment-button/segment-button.styles.ts`
- *    - `src/ui/date-range-input/date-range-input.styles.ts`
+ *    - `src/ui/stepper/stepper.styles.ts`
  *  - `src/ui/viewport.ts` — учитывает `OUTLINE_OVERHANG_PX` в отступе clamp панелей
  */
 
@@ -48,7 +50,7 @@ const OUTLINE_OFFSET = `${OUTLINE_OFFSET_PX}px`;
  * OUTLINE_OVERHANG_PX — формирует вылет обводки за `border-box` из `OUTLINE_WIDTH_PX`
  * и `OUTLINE_OFFSET_PX`. Число px для JS-математики позиционирования — геометрия DOM
  * считается в px, в CSS-правиле не попадает.
- * Используется в `PORTAL_VIEWPORT_EDGE_INSET` из `@ui/viewport`.
+ * Используется в `PANEL_VIEWPORT_EDGE_INSET` из `@ui/viewport`.
  */
 export const OUTLINE_OVERHANG_PX = OUTLINE_WIDTH_PX + OUTLINE_OFFSET_PX;
 

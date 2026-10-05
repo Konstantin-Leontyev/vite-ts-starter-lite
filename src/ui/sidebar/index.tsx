@@ -20,15 +20,19 @@
  *  - рамку панели через проп `showBorder`
  *  - тень панели через проп `showShadow`
  *  - тон рамки панели через проп `borderTone`
+ *  - рамку действий через проп `showActionBorder`
+ *  - тень действий через проп `showActionShadow`
  *  - заголовок панели через проп `title`
+ *  - уровень заголовка панели через проп `titleLevel`
  *  - подзаголовок панели через проп `subtitle`
- *  - размер заголовка через проп `titleSizePreset`
- *  - выравнивание заголовка через проп `titleAlign`
  *  - тон заголовка через проп `titleTone`
- *  - размер подзаголовка через проп `subtitleSizePreset`
- *  - выравнивание подзаголовка через проп `subtitleAlign`
+ *  - размер заголовка через проп `titleSize`
+ *  - курсив заголовка через проп `titleItalic`
+ *  - выравнивание заголовка через проп `titleAlign`
  *  - тон подзаголовка через проп `subtitleTone`
- *  - переопределение корневого элемента панели через проп `as`
+ *  - размер подзаголовка через проп `subtitleSize`
+ *  - курсив подзаголовка через проп `subtitleItalic`
+ *  - выравнивание подзаголовка через проп `subtitleAlign`
  *
  * Основные задачи:
  * 1. Экспортировать компонент Sidebar
@@ -51,7 +55,10 @@ import {
 } from 'react';
 
 import { SidebarIcon } from '@icons';
-import { Card, type CardHeaderAction } from '@ui/card';
+import { type ShowActionBorderProps } from '@ui/border';
+import { Card } from '@ui/card';
+import { type IconButtonRowAction } from '@ui/icon-button-row';
+import { type DistributiveOmit } from '@ui/type-utils';
 
 import {
   StyledSidebar,
@@ -66,7 +73,7 @@ import {
  * DEFAULT_SIDEBAR_HEADER_ACTIONS — задаёт ряд действий шапки по умолчанию.
  * Используется, когда вызывающий код не передал проп `headerActions`.
  */
-const DEFAULT_SIDEBAR_HEADER_ACTIONS: CardHeaderAction[] = [];
+const DEFAULT_SIDEBAR_HEADER_ACTIONS: IconButtonRowAction[] = [];
 
 /**
  * DEFAULT_SIDEBAR_ICON — задаёт иконку кнопки сворачивания по умолчанию.
@@ -84,10 +91,16 @@ const DEFAULT_SIDEBAR_ICON_ARIA_LABEL = 'Close panel';
  * CardForwardProps — представляет пропсы Card, доступные панели Sidebar.
  * Layout-пропсы зарезервированы за оболочкой Sidebar через `SidebarStyleProps`.
  */
-type CardForwardProps = Omit<
+type CardForwardProps = DistributiveOmit<
   ComponentProps<typeof Card>,
-  'children' | 'headerActions' | 'id' | 'titleId' | keyof SidebarStyleProps
->;
+  | 'children'
+  | 'headerActions'
+  | 'id'
+  | 'titleId'
+  | keyof ShowActionBorderProps
+  | keyof SidebarStyleProps
+> &
+  ShowActionBorderProps;
 
 /**
  * SidebarProps — представляет пропсы компонента Sidebar.
@@ -106,7 +119,7 @@ type SidebarProps = SidebarStyleProps &
   CardForwardProps & {
     children: ReactNode;
     contentRef?: Ref<HTMLDivElement>;
-    headerActions?: CardHeaderAction[];
+    headerActions?: IconButtonRowAction[];
     icon?: ReactNode;
     iconAriaLabel?: string;
     id?: string;
@@ -143,14 +156,14 @@ export function Sidebar({
   onClose,
   open,
   sidebarContent,
-  title,
-  ...rest
+  ...forward
 }: SidebarProps) {
-  const { layoutProps, restProps } = splitLayoutProps(rest);
-  const titleId = title && id ? `${id}-title` : undefined;
+  const { layoutProps, restProps } = splitLayoutProps(forward);
+  const cardProps = restProps as CardForwardProps;
+  const titleId = cardProps.title && id ? `${id}-title` : undefined;
 
   // Пользовательские действия первыми, кнопка сворачивания — последней, крайняя справа.
-  const cardHeaderActions: CardHeaderAction[] = [
+  const cardHeaderActions: IconButtonRowAction[] = [
     ...headerActions,
     {
       ariaControls: id,
@@ -196,6 +209,15 @@ export function Sidebar({
     };
   }, [open]);
 
+  /**
+   * handleTransitionEnd — убирает слот панели из DOM после завершения сворачивания.
+   *
+   * Как работает:
+   * 1. Проверяет, что завершился переход `transform` и панель закрыта
+   * 2. Убирает слот из DOM
+   *
+   * @param event событие завершения перехода на треке панели
+   */
   function handleTransitionEnd(event: TransitionEvent<HTMLDivElement>): void {
     // Убирает слот из DOM только после завершения сворачивания.
     if (event.propertyName === 'transform' && !open) {
@@ -222,9 +244,8 @@ export function Sidebar({
           <Card
             headerActions={cardHeaderActions}
             paddingBlockEnd={0}
-            title={title}
+            {...cardProps}
             titleId={titleId}
-            {...restProps}
           >
             {sidebarContent}
           </Card>

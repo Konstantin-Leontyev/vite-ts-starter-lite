@@ -10,50 +10,59 @@
  *  - тон рамки через проп `borderTone`
  *  - тело карточки через `children`
  *  - заголовок через проп `title`
- *  - подзаголовок через проп `subtitle`
- *  - размер заголовка через проп `titleSizePreset`
- *  - выравнивание заголовка через проп `titleAlign`
  *  - тон заголовка через проп `titleTone`
- *  - размер подзаголовка через проп `subtitleSizePreset`
- *  - выравнивание подзаголовка через проп `subtitleAlign`
+ *  - размер заголовка через проп `titleSize`
+ *  - курсив заголовка через проп `titleItalic`
+ *  - выравнивание заголовка через проп `titleAlign`
+ *  - уровень заголовка через проп `titleLevel`
+ *  - подзаголовок через проп `subtitle`
  *  - тон подзаголовка через проп `subtitleTone`
+ *  - размер подзаголовка через проп `subtitleSize`
+ *  - курсив подзаголовка через проп `subtitleItalic`
+ *  - выравнивание подзаголовка через проп `subtitleAlign`
  *  - id заголовка для `aria-labelledby` через проп `titleId`
  *  - ряд действий в шапке через проп `headerActions`
+ *  - рамку действий шапки через проп `showActionBorder`
+ *  - тень действий шапки через проп `showActionShadow`
  *  - переопределение корневого элемента через проп `as`
  *
  * Основные задачи:
  * 1. Экспортировать полиморфный компонент Card
  * 2. Типизировать пропсы через `CardProps`
- * 3. Экспортировать тип `CardHeaderAction`
- * 4. Реэкспортировать публичное API стилей: `CARD_BACKGROUND_KEYS`,
- *    `CARD_HEADER_ACTION_SIZE_PRESET`, `CardBackground`
+ * 3. Реэкспортировать публичное API стилей: `CARD_HEADER_ACTION_SIZE_PRESET`
+ * 4. Связывать имя области с заголовком через `aria-labelledby`, когда у корня есть роль
  *
  * Потребители:
- *  - страницы и виджеты приложения — показывают карточки с шапкой и действиями
+ *  - `src/ui/modal/index.tsx` — рендерит Card внутри модального диалога
+ *  - `src/ui/sidebar/index.tsx` — рендерит Card внутри выезжающей панели
+ *  - страницы и виджеты приложения, например ProfileMenu — показывают карточки с шапкой и действиями
  *  - `src/pages/showcase` — демонстрирует состояния в витрине
  */
 
 import {
   createElement,
-  type CSSProperties,
+  useId,
+  type ComponentProps,
   type ComponentPropsWithRef,
-  type MouseEvent,
-  type ReactNode,
 } from 'react';
 
-import { Icon } from '@ui/icon';
-import { type SpacingValue } from '@ui/spacing';
-import { Text, type TextSizePreset, type TextTone } from '@ui/text';
+import { resolveBorderProps, type ShowActionBorderProps } from '@ui/border';
+import { IconButtonRow, type IconButtonRowAction } from '@ui/icon-button-row';
+import { resolvePaddingEdge } from '@ui/spacing';
+import {
+  Text,
+  type TextNodeProps,
+  type TextSizePreset,
+  type TextTonePreset,
+} from '@ui/text';
 
 import {
-  CARD_BACKGROUND_KEYS,
   CARD_HEADER_ACTION_SIZE_PRESET,
+  CARD_PADDING,
   StyledCard,
   StyledCardBody,
   StyledCardHeader,
-  StyledCardHeaderActions,
   StyledCardHeaderFirstLine,
-  type CardBackground,
   type CardStyleProps,
 } from './card.styles';
 
@@ -63,32 +72,14 @@ import {
 type CardHtmlTag = 'article' | 'div' | 'section';
 
 /**
- * CardHeaderAction — представляет кнопку-действие в шапке карточки, например copy,
- * settings и close, со своим обработчиком.
- *
- * @property ariaControls — id управляемой панели для `aria-controls`
- * @property ariaExpanded — состояние раскрытия для `aria-expanded`
- * @property ariaLabel — доступное имя кнопки
- * @property disabled — включает недоступное состояние
- * @property icon — svg-глиф действия
- * @property iconPadding — отступ окна Icon вместо отступа из размерного ряда.
- *   Область клика не меняет, увеличенный отступ зрительно уменьшает глиф,
- *   например close в Modal и ProfileMenu
- * @property onClick — обработчик клика
+ * DEFAULT_CARD_TITLE_LEVEL — задаёт уровень заголовка по умолчанию.
+ * Используется, когда вызывающий код не передал проп `titleLevel`.
  */
-type CardHeaderAction = {
-  ariaControls?: string;
-  ariaExpanded?: boolean;
-  ariaLabel?: string;
-  disabled?: boolean;
-  icon: ReactNode;
-  iconPadding?: SpacingValue;
-  onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
-};
+const DEFAULT_CARD_TITLE_LEVEL = 'h2' as const;
 
 /**
  * DEFAULT_CARD_TITLE_SIZE_PRESET — задаёт размер заголовка по умолчанию.
- * Используется, когда вызывающий код не передал проп `titleSizePreset`.
+ * Используется, когда вызывающий код не передал проп `titleSize`.
  */
 const DEFAULT_CARD_TITLE_SIZE_PRESET: TextSizePreset = 'bold';
 
@@ -96,61 +87,31 @@ const DEFAULT_CARD_TITLE_SIZE_PRESET: TextSizePreset = 'bold';
  * DEFAULT_CARD_SUBTITLE_TONE — задаёт тон подзаголовка по умолчанию.
  * Подзаголовок — вторичный текст, поэтому `muted`.
  */
-const DEFAULT_CARD_SUBTITLE_TONE: TextTone = 'muted';
+const DEFAULT_CARD_SUBTITLE_TONE: TextTonePreset = 'muted';
 
 /**
  * DEFAULT_CARD_HEADER_ACTIONS — задаёт пустой ряд действий по умолчанию.
  * Используется, когда вызывающий код не передал проп `headerActions`.
  */
-const DEFAULT_CARD_HEADER_ACTIONS: CardHeaderAction[] = [];
-
-/**
- * handleHeaderActionClick — останавливает всплытие клика по действию шапки
- * и вызывает обработчик действия, если он задан.
- *
- * @param action действие шапки
- * @param event событие клика по кнопке действия
- */
-function handleHeaderActionClick(
-  action: CardHeaderAction,
-  event: MouseEvent<HTMLButtonElement>
-) {
-  event.stopPropagation();
-  action.onClick?.(event);
-}
+const DEFAULT_CARD_HEADER_ACTIONS: IconButtonRowAction[] = [];
 
 /**
  * CardProps — представляет пропсы компонента Card.
  *
  * @template T тип корневого элемента, по умолчанию `div`
  *
- * @property as — переопределяет корневой HTML-тег, например `<article>`, `<section>`
- * @property children — содержимое тела карточки
+ * @property as — переопределяет корневой HTML-тег, например `<article>`, `<div>`, `<section>`
  * @property headerActions — ряд действий в правом верхнем углу
- * @property subtitle — подзаголовок под заголовком
- * @property subtitleAlign — выравнивание подзаголовка
- * @property subtitleSizePreset — размер подзаголовка
- * @property subtitleTone — тон подзаголовка
- * @property title — заголовок
- * @property titleAlign — выравнивание заголовка
- * @property titleId — id заголовка для `aria-labelledby`
- * @property titleSizePreset — размер заголовка
- * @property titleTone — тон заголовка
+ * @property titleId — id заголовка для `aria-labelledby` у внешнего узла
  */
 type CardProps<T extends CardHtmlTag = 'div'> = {
   as?: T;
-  children?: ReactNode;
-  headerActions?: CardHeaderAction[];
-  subtitle?: string;
-  subtitleAlign?: CSSProperties['textAlign'];
-  subtitleSizePreset?: TextSizePreset;
-  subtitleTone?: TextTone;
-  title?: string;
-  titleAlign?: CSSProperties['textAlign'];
+  headerActions?: IconButtonRowAction[];
   titleId?: string;
-  titleSizePreset?: TextSizePreset;
-  titleTone?: TextTone;
-} & Omit<CardStyleProps, 'hasHeader'> &
+} & ShowActionBorderProps &
+  TextNodeProps<'title'> &
+  TextNodeProps<'subtitle'> &
+  Omit<CardStyleProps, 'hasHeader'> &
   Omit<ComponentPropsWithRef<T>, 'className' | 'style' | 'title' | keyof CardStyleProps>;
 
 /**
@@ -165,48 +126,42 @@ function Card<T extends CardHtmlTag = 'div'>({
   as,
   children,
   headerActions = DEFAULT_CARD_HEADER_ACTIONS,
+  showActionBorder,
+  showActionShadow,
   subtitle,
   subtitleAlign,
-  subtitleSizePreset,
+  subtitleItalic,
+  subtitleSize,
   subtitleTone = DEFAULT_CARD_SUBTITLE_TONE,
   title,
   titleAlign,
   titleId,
-  titleSizePreset = DEFAULT_CARD_TITLE_SIZE_PRESET,
+  titleItalic,
+  titleLevel = DEFAULT_CARD_TITLE_LEVEL,
+  titleSize = DEFAULT_CARD_TITLE_SIZE_PRESET,
   titleTone,
   ...rest
 }: CardProps<T>) {
+  const fallbackTitleId = useId();
   const hasHeader = Boolean(title || subtitle);
-  const hasActions = headerActions.length > 0;
-
-  const actionsRow = hasActions && (
-    <StyledCardHeaderActions>
-      {headerActions.map((action, index) => (
-        <Icon
-          aria-controls={action.ariaControls}
-          aria-expanded={action.ariaExpanded}
-          aria-hidden={action.ariaLabel ? undefined : true}
-          aria-label={action.ariaLabel}
-          as="button"
-          disabled={action.disabled}
-          key={index}
-          padding={action.iconPadding}
-          shape="round"
-          sizePreset={CARD_HEADER_ACTION_SIZE_PRESET}
-          tabIndex={action.ariaLabel ? undefined : -1}
-          onClick={(event) => handleHeaderActionClick(action, event)}
-        >
-          {action.icon}
-        </Icon>
-      ))}
-    </StyledCardHeaderActions>
+  const headingId = titleId ?? fallbackTitleId;
+  const hasRootRole = as === 'article' || as === 'section';
+  const labelledBy = title && hasRootRole ? headingId : undefined;
+  const actionBorderProps = resolveBorderProps(
+    showActionBorder ?? false,
+    undefined,
+    showActionShadow
   );
 
+  // Подзаголовок остаётся абзацем и уровня не получает: он поясняет карточку
+  // целиком, а не открывает часть содержимого. Попав в оглавление, обещал бы
+  // раздел, которого нет.
   const subtitleNode = Boolean(subtitle) && (
     <Text
       align={subtitleAlign}
       as="p"
-      sizePreset={subtitleSizePreset}
+      italic={subtitleItalic}
+      size={subtitleSize}
       tone={subtitleTone}
     >
       {subtitle}
@@ -219,9 +174,10 @@ function Card<T extends CardHtmlTag = 'div'>({
         {Boolean(title) && (
           <Text
             align={titleAlign}
-            as="h2"
-            id={titleId}
-            sizePreset={titleSizePreset}
+            as={titleLevel}
+            id={headingId}
+            italic={titleItalic}
+            size={titleSize}
             tone={titleTone}
           >
             {title}
@@ -235,17 +191,24 @@ function Card<T extends CardHtmlTag = 'div'>({
 
   return createElement(
     StyledCard,
-    { as, hasHeader, ...rest },
-    actionsRow,
+    {
+      as,
+      'aria-labelledby': labelledBy,
+      hasHeader,
+      ...(rest as Omit<ComponentProps<typeof StyledCard>, 'as' | 'hasHeader'>),
+    },
     header,
-    <StyledCardBody>{children}</StyledCardBody>
+    <IconButtonRow
+      actions={headerActions}
+      insetBlockStart={resolvePaddingEdge(rest, 'blockStart', CARD_PADDING)}
+      insetInlineEnd={resolvePaddingEdge(rest, 'inlineEnd', CARD_PADDING)}
+      position="absolute"
+      size={CARD_HEADER_ACTION_SIZE_PRESET}
+      {...actionBorderProps}
+      zIndex={1}
+    />,
+    Boolean(children) && <StyledCardBody>{children}</StyledCardBody>
   );
 }
 
-export {
-  CARD_BACKGROUND_KEYS,
-  CARD_HEADER_ACTION_SIZE_PRESET,
-  Card,
-  type CardBackground,
-  type CardHeaderAction,
-};
+export { CARD_HEADER_ACTION_SIZE_PRESET, Card };

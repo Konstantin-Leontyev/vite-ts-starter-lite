@@ -28,13 +28,13 @@ function getTableMemberPrefixStyles(props: { theme: AppTheme }): string {
  * StyledTableMemberPrefix — задаёт префикс member-строки компонента TableMemberPrefix.
  * Базируется на `<span>` и принимает нативные атрибуты элемента.
  *
- * Встроенные стили:
- *  - `flex-shrink: 0` — префикс не сжимается при нехватке места
- *
  * Генерация стилей:
  *  - `getTableMemberPrefixStyles` — приглушённый цвет из темы
+ *  - `$reserve` — прячет глиф через `visibility: hidden`, ширину оставляет
  */
-export const StyledTableMemberPrefix = styled.span`
-  flex-shrink: 0;
+export const StyledTableMemberPrefix = styled.span.withConfig({
+  shouldForwardProp: (prop) => prop !== '$reserve',
+})<{ $reserve?: boolean }>`
   ${(props) => getTableMemberPrefixStyles(props)}
+  ${(props) => props.$reserve && 'visibility: hidden;'}
 `;

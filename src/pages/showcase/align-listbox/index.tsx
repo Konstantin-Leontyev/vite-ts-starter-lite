@@ -16,26 +16,12 @@
  * Потребители:
  *  - панели настроек витрины — выбирают выравнивание текста:
  *     - `src/pages/showcase/text-group/index.tsx`
- *     - `src/pages/showcase/title-group/index.tsx`
  */
 
-import { Listbox, type ListboxOption } from '@ui/listbox';
+import { Listbox } from '@ui/listbox';
 import { type TextAlignPreset } from '@ui/text';
 
-/**
- * getAlignListboxOptions — преобразует перечень выравниваний в опции Listbox.
- *
- * @param aligns исходный перечень выравниваний
- * @returns опции для Listbox
- */
-function getAlignListboxOptions<Align extends string>(
-  aligns: readonly Align[]
-): ListboxOption[] {
-  return aligns.map((align) => ({
-    label: align,
-    value: align,
-  }));
-}
+import { getListboxOptions } from '../showcase-listbox-options';
 
 /**
  * DEFAULT_ALIGN_LISTBOX_VALUE — задаёт выравнивание по умолчанию.
@@ -82,7 +68,7 @@ export function AlignListbox<Align extends string = TextAlignPreset>({
   return (
     <Listbox
       label={label}
-      options={getAlignListboxOptions(aligns)}
+      options={getListboxOptions(aligns)}
       value={value}
       onChange={(nextAlign) => onChange(nextAlign as Align)}
     />

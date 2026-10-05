@@ -7,6 +7,10 @@
  * Основные задачи:
  * 1. Типизировать пропсы через `TableDemoProps`
  * 2. Экспортировать компонент `TableDemo`
+ * 3. Задавать доступное имя полей Product, Stock и Price в add- и edit-панелях
+ *    через `aria-label` из `column.header`. Проп `placeholder` задаёт подсказку
+ *    пустого значения, не имя. `aria-labelledby` на заголовок колонки из демо
+ *    недоступен: заголовки add-панели без id, edit-панель заголовков не содержит
  *
  * Потребители:
  *  - `src/pages/showcase/index.tsx` — рендерит демо в карточке виджета Table
@@ -23,11 +27,13 @@ import {
   TableGroupCell,
   TableInlineField,
   TableMemberPrefix,
-  TableNestedCell,
   computeTableColumnInlineSizes,
+  type TableAddRowActiveProps,
   type TableAddRowSource,
   type TableCellRenderContext,
   type TableColumn,
+  type TableEditRowActiveProps,
+  type TableEditableProps,
 } from '@ui/table';
 import { Text } from '@ui/text';
 
@@ -50,13 +56,13 @@ import { type TableWidgetState } from '../table-settings';
 const ROW_ACTION_MIN_INLINE_SIZE = '5.5rem';
 
 /**
- * ROW_ACTION_SIZE_PRESET — задаёт `sizePreset` кнопок Delete в checkable-режиме.
+ * ROW_ACTION_SIZE_PRESET — задаёт `size` кнопок Delete в checkable-режиме.
  * Используется в `Delete` одиночного и группового удаления.
  */
 const ROW_ACTION_SIZE_PRESET: SizePreset = 'small';
 
 /**
- * GROUP_EXPANDER_SIZE_PRESET — задаёт `sizePreset` кнопки раскрытия группы.
+ * GROUP_EXPANDER_SIZE_PRESET — задаёт `size` кнопки раскрытия группы.
  * Используется в expander голов групп демо-таблицы.
  */
 const GROUP_EXPANDER_SIZE_PRESET: IconSizePreset = 'tiny';
@@ -66,6 +72,27 @@ const GROUP_EXPANDER_SIZE_PRESET: IconSizePreset = 'tiny';
  * Используется в expander голов групп демо-таблицы.
  */
 const GROUP_EXPANDER_SHAPE: IconShapePreset = 'rounded';
+
+/**
+ * CatalogMemberProduct — собирает подпись товара в колонке шеврона родителя.
+ * При `nestDepth` 0 значок стоит первым. При 1 перед ним резерв той же ширины,
+ * чтобы значок встал под шевроном вложенной головы.
+ */
+function CatalogMemberProduct({
+  children,
+  nestDepth,
+}: {
+  children: ReactNode;
+  nestDepth: number;
+}) {
+  return (
+    <TableGroupCell>
+      {nestDepth > 0 && <TableMemberPrefix reserve>↳</TableMemberPrefix>}
+      <TableMemberPrefix>↳</TableMemberPrefix>
+      {children}
+    </TableGroupCell>
+  );
+}
 
 /**
  * CATALOG_TABLE_DEMO_ARIA_LABEL — задаёт `aria-label` демо-таблицы каталога.
@@ -166,7 +193,7 @@ function buildCatalogColumns(
           return null;
         }
 
-        return <Text sizePreset={textSize}>{row.indexLabel}</Text>;
+        return <Text size={textSize}>{row.indexLabel}</Text>;
       },
     },
     {
@@ -177,7 +204,7 @@ function buildCatalogColumns(
       renderCell: (row, _rowIndex, { textSize }) => {
         if (row.rowKind === 'brand-head') {
           return (
-            <Text ellipsis fontWeight={600} sizePreset={textSize}>
+            <Text ellipsis fontWeight={600} size={textSize}>
               {row.product}
             </Text>
           );
@@ -194,7 +221,7 @@ function buildCatalogColumns(
               as="button"
               shape={GROUP_EXPANDER_SHAPE}
               showBorder
-              sizePreset={GROUP_EXPANDER_SIZE_PRESET}
+              size={GROUP_EXPANDER_SIZE_PRESET}
               onClick={() => {
                 toggleGroup(row.groupId);
               }}
@@ -204,23 +231,14 @@ function buildCatalogColumns(
           );
 
           const label = (
-            <Text ellipsis fontWeight={600} sizePreset={textSize}>
+            <Text ellipsis fontWeight={600} size={textSize}>
               {row.product}
             </Text>
           );
 
-          if (nestDepth > 0) {
-            return (
-              <TableGroupCell>
-                <TableMemberPrefix>↳</TableMemberPrefix>
-                {expander}
-                {label}
-              </TableGroupCell>
-            );
-          }
-
           return (
             <TableGroupCell>
+              {nestDepth > 0 && <TableMemberPrefix>↳</TableMemberPrefix>}
               {expander}
               {label}
             </TableGroupCell>
@@ -228,12 +246,11 @@ function buildCatalogColumns(
         }
 
         return (
-          <TableNestedCell nestDepth={row.nestDepth ?? 1}>
-            <TableMemberPrefix>↳</TableMemberPrefix>
-            <Text ellipsis sizePreset={textSize}>
+          <CatalogMemberProduct nestDepth={row.nestDepth ?? 0}>
+            <Text ellipsis size={textSize}>
               {row.product}
             </Text>
-          </TableNestedCell>
+          </CatalogMemberProduct>
         );
       },
     },
@@ -249,7 +266,7 @@ function buildCatalogColumns(
           return null;
         }
 
-        return <Text sizePreset={textSize}>{row.stock}</Text>;
+        return <Text size={textSize}>{row.stock}</Text>;
       },
     },
     {
@@ -264,7 +281,7 @@ function buildCatalogColumns(
           return null;
         }
 
-        return <Text sizePreset={textSize}>{row.price}</Text>;
+        return <Text size={textSize}>{row.price}</Text>;
       },
     },
   ];
@@ -382,7 +399,7 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
         price: { header: 'Price', samples: priceSamples },
         stock: { header: 'Stock', samples: stockSamples },
       },
-      settings.sizePreset
+      settings.size
     );
   }, [
     addDraft.price,
@@ -392,7 +409,7 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
     editDraft.stock,
     isEditRowOpen,
     products,
-    settings.sizePreset,
+    settings.size,
   ]);
 
   const memberKeysByHeaderRowId = useMemo(
@@ -554,7 +571,7 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
   const renderAddCell = useCallback(
     (
       column: TableColumn<CatalogTableRow>,
-      { addErrorId, textSize }: TableCellRenderContext
+      { addErrorId }: TableCellRenderContext
     ): ReactNode => {
       if (column.key === 'indexLabel') {
         return null;
@@ -564,8 +581,8 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
         return (
           <TableInlineField
             aria-describedby={addErrorId}
+            aria-label={column.header}
             placeholder="Product"
-            textSize={textSize}
             value={addDraft.product}
             onChange={(event) =>
               setAddDraft((current) => ({
@@ -592,10 +609,9 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
         return (
           <TableInlineField
             aria-describedby={addErrorId}
+            aria-label={column.header}
             inputMode="numeric"
             placeholder="Stock"
-            textAlign="end"
-            textSize={textSize}
             value={addDraft.stock}
             onChange={(event) =>
               setAddDraft((current) => ({
@@ -617,9 +633,8 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
         return (
           <TableInlineField
             aria-describedby={addErrorId}
+            aria-label={column.header}
             placeholder="Price"
-            textAlign="end"
-            textSize={textSize}
             value={addDraft.price}
             onChange={(event) =>
               setAddDraft((current) => ({
@@ -649,15 +664,15 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
       { editErrorId, textSize }: TableCellRenderContext
     ): ReactNode => {
       if (column.key === 'indexLabel') {
-        return <Text sizePreset={textSize}>{row.indexLabel}</Text>;
+        return <Text size={textSize}>{row.indexLabel}</Text>;
       }
 
       if (column.key === 'product') {
         const field = (
           <TableInlineField
             aria-describedby={editErrorId}
+            aria-label={column.header}
             placeholder="Product"
-            textSize={textSize}
             value={editDraft.product}
             onChange={(event) =>
               setEditDraft((current) => ({
@@ -680,10 +695,9 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
         );
 
         return (
-          <TableNestedCell nestDepth={1}>
-            <TableMemberPrefix>↳</TableMemberPrefix>
+          <CatalogMemberProduct nestDepth={row.nestDepth ?? 0}>
             {field}
-          </TableNestedCell>
+          </CatalogMemberProduct>
         );
       }
 
@@ -691,10 +705,9 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
         return (
           <TableInlineField
             aria-describedby={editErrorId}
+            aria-label={column.header}
             inputMode="numeric"
             placeholder="Stock"
-            textAlign="end"
-            textSize={textSize}
             value={editDraft.stock}
             onChange={(event) =>
               setEditDraft((current) => ({
@@ -716,9 +729,8 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
         return (
           <TableInlineField
             aria-describedby={editErrorId}
+            aria-label={column.header}
             placeholder="Price"
-            textAlign="end"
-            textSize={textSize}
             value={editDraft.price}
             onChange={(event) =>
               setEditDraft((current) => ({
@@ -743,38 +755,52 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
 
   const tableProps = {
     columns,
-    // Ось numbered Table выключена: нумерация идёт через колонку indexLabel
+    // Проп numbered Table выключен: нумерация идёт через колонку indexLabel
     // по витринному ключу showIndexColumn.
     hoverHighlight: settings.hoverHighlight,
     numbered: false,
     rows: tableRows,
     showBorder: settings.showBorder,
-    sizePreset: settings.sizePreset,
+    size: settings.size,
     striped: settings.striped,
   };
 
-  const editableProps = settings.editable
+  const addRowActiveProps: TableAddRowActiveProps<CatalogTableRow> = isAddRowOpen
     ? {
-        addRowActive: isAddRowOpen,
+        addRowActive: true,
         addRowSource,
-        editable: true as const,
-        editRowActive: isEditRowOpen,
+        renderAddCell,
+      }
+    : {};
+  const editRowActiveProps: TableEditRowActiveProps = isEditRowOpen
+    ? {
+        editRowActive: true,
         editRowKey: editRowId,
-        onAddRow: handleAddRowRequest,
+      }
+    : {};
+  const editableProps: TableEditableProps<CatalogTableRow> = settings.editable
+    ? {
+        ...(settings.addHint.trim() !== '' ? { addHint: settings.addHint } : {}),
+        ...(settings.editHint.trim() !== '' ? { editHint: settings.editHint } : {}),
+        editable: true,
         onAddCancel: resetAddRow,
+        onAddRow: handleAddRowRequest,
         onEditCancel: resetEditRow,
         onEditRow: handleEditRowRequest,
-        renderAddCell,
         renderEditCell,
+        ...addRowActiveProps,
+        ...editRowActiveProps,
       }
     : {
-        editable: false as const,
+        editable: false,
       };
 
   if (!settings.checkable) {
     return (
       <Table
         aria-label={CATALOG_TABLE_DEMO_ARIA_LABEL}
+        paddingBlockEnd={16}
+        paddingBlockStart={4}
         {...tableProps}
         {...editableProps}
       />
@@ -784,6 +810,8 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
   return (
     <Table
       aria-label={CATALOG_TABLE_DEMO_ARIA_LABEL}
+      paddingBlockEnd={16}
+      paddingBlockStart={4}
       {...tableProps}
       {...editableProps}
       allSelectableKeys={allSelectableKeys}
@@ -794,7 +822,7 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
       renderBulkSelectionActions={() => (
         <Button
           minInlineSize={ROW_ACTION_MIN_INLINE_SIZE}
-          sizePreset={ROW_ACTION_SIZE_PRESET}
+          size={ROW_ACTION_SIZE_PRESET}
           tone="danger"
           onClick={handleBulkDelete}
         >
@@ -804,7 +832,7 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
       renderSelectedRowActions={(row) => (
         <Button
           minInlineSize={ROW_ACTION_MIN_INLINE_SIZE}
-          sizePreset={ROW_ACTION_SIZE_PRESET}
+          size={ROW_ACTION_SIZE_PRESET}
           tone="danger"
           onClick={() => {
             handleDeleteRow(row);
@@ -813,13 +841,9 @@ export function TableDemo({ settings }: TableDemoProps): ReactNode {
           Delete
         </Button>
       )}
+      rowCheckboxColumnKey="product"
       selectedKeys={selectedKeys}
-      {...(settings.separateCheckboxColumn
-        ? { selectedRowActionsColumnKey: 'product' as const }
-        : {
-            rowCheckboxColumnKey: 'product' as const,
-            selectedRowActionsColumnKey: 'product' as const,
-          })}
+      selectedRowActionsColumnKey="product"
       onSelectedKeysChange={setSelectedKeys}
     />
   );

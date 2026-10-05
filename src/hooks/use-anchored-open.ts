@@ -1,7 +1,7 @@
 /**
  * Файл: `src/hooks/use-anchored-open.ts`
  * Предоставляет open-state и ссылку на панель для anchored-контролов.
- * Оставляет позиционирование, закрытие и удержание фокуса зоне `@ui/anchored-portal`.
+ * Оставляет позиционирование, закрытие и удержание фокуса зоне `@ui/anchored-panel`.
  *
  * Основные задачи:
  * 1. Предоставить хук `useAnchoredOpen`
@@ -9,9 +9,9 @@
  * Потребители:
  *  - anchored-контролы — держат open-state и ссылку на панель:
  *     - `src/ui/listbox/index.tsx`
- *     - `src/ui/combobox/index.tsx`
  *     - `src/ui/range-input/index.tsx`
  *     - `src/ui/date-range-input/index.tsx`
+ *  - `src/components/profile-menu/index.tsx` — держит open-state и ссылку на панель ProfileMenu
  */
 
 import { useRef, useState, type RefObject } from 'react';

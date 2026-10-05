@@ -4,18 +4,14 @@
  *
  * Поддерживает:
  *  - layout-пропсы: отступы, позиционирование, размеры
- *  - размерный ряд через проп `sizePreset`
+ *  - размерный ряд через проп `size`
  *  - семантический тон через проп `tone`
  *  - текст сообщения через `children`
- *  - тон текста сообщения через проп `textTone`
- *  - размер текста сообщения через проп `textSize`
- *  - курсив текста сообщения через проп `textItalic`
  *
  * Основные задачи:
  * 1. Экспортировать компонент Toast
  * 2. Типизировать пропсы через `ToastProps`
  * 3. Выставлять `role` и `aria-live` по тону: для `danger` — `alert` и `assertive`
- * 4. Реэкспортировать мост размера текста `getToastTextSize`
  *
  * Потребители:
  *  - `src/context/toast/index.tsx` — рендерит Toast в стеке уведомлений
@@ -24,23 +20,18 @@
 
 import { type ComponentPropsWithRef, type ReactNode } from 'react';
 
-import { Text, type TextSizePreset, type TextTone } from '@ui/text';
+import { getTextSize } from '@ui/presets';
+import { Text } from '@ui/text';
 
-import { StyledToast, getToastTextSize, type ToastStyleProps } from './toast.styles';
+import { StyledToast, type ToastStyleProps } from './toast.styles';
 
 /**
  * ToastProps — представляет пропсы компонента Toast.
  *
  * @property children — текст сообщения
- * @property textItalic — включает курсив текста сообщения
- * @property textSize — размер текста сообщения
- * @property textTone — тон текста сообщения
  */
 type ToastProps = ToastStyleProps & {
   children: ReactNode;
-  textItalic?: boolean;
-  textSize?: TextSizePreset;
-  textTone?: TextTone;
 } & Omit<
     ComponentPropsWithRef<'div'>,
     'children' | 'className' | 'style' | keyof ToastStyleProps
@@ -53,37 +44,16 @@ type ToastProps = ToastStyleProps & {
  * <Toast>Успешно сохранено</Toast>
  * <Toast tone="danger">Ошибка</Toast>
  */
-function Toast({
-  children,
-  sizePreset,
-  textItalic,
-  textSize,
-  textTone,
-  tone,
-  ...rest
-}: ToastProps) {
+function Toast({ children, size, tone, ...rest }: ToastProps) {
   const isDanger = tone === 'danger';
   const role = isDanger ? 'alert' : 'status';
   const ariaLive = isDanger ? 'assertive' : 'polite';
 
   return (
-    <StyledToast
-      aria-live={ariaLive}
-      role={role}
-      sizePreset={sizePreset}
-      tone={tone}
-      {...rest}
-    >
-      <Text
-        italic={textItalic}
-        sizePreset={textSize ?? getToastTextSize(sizePreset)}
-        tone={textTone}
-      >
-        {children}
-      </Text>
+    <StyledToast aria-live={ariaLive} role={role} size={size} tone={tone} {...rest}>
+      <Text size={getTextSize(size)}>{children}</Text>
     </StyledToast>
   );
 }
 
-/* eslint-disable react-refresh/only-export-components -- реэкспорт моста размера текста */
-export { Toast, getToastTextSize };
+export { Toast };

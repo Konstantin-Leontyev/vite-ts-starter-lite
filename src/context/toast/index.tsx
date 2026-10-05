@@ -7,18 +7,19 @@
  * Основные задачи:
  * 1. Экспортировать компонент ToastProvider
  * 2. Типизировать пропсы через `ToastProviderProps`
- * 3. Предоставлять метод `showToast` через `ToastContext`
+ * 3. Предоставить метод `showToast` через `ToastContext`
  * 4. Автоматически скрывать уведомления через `TOAST_DURATION_MS`
  * 5. Закрывать все уведомления по Escape
- * 6. Рендерить уведомления в портале поверх всех слоёв
+ * 6. Рендерить стек уведомлений в дереве провайдера после `children` через
+ *    `POPOVER_MANUAL` и `showPopover` из `@ui/popover`
  *
  * Потребители:
  *  - `src/main.tsx` — оборачивает приложение провайдером
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
+import { POPOVER_MANUAL, showPopover } from '@ui/popover';
 import { Toast } from '@ui/toast';
 
 import { ToastContext, type ToastContextValue, type ToastInput } from './context';
@@ -56,7 +57,9 @@ type ToastProviderProps = {
  */
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<ActiveToast[]>([]);
+  const hasToasts = toasts.length > 0;
   const timersRef = useRef<Map<string, number>>(new Map());
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   /**
    * dismiss — закрывает уведомление по id.
@@ -116,30 +119,43 @@ export function ToastProvider({ children }: ToastProviderProps) {
     };
   }, []);
 
+  /**
+   * Показывает стек уведомлений через `showPopover` до отрисовки кадра.
+   * Нативный popover в режиме `POPOVER_MANUAL` сам стек не открывает.
+   */
+  useLayoutEffect(() => {
+    if (!hasToasts) {
+      return;
+    }
+
+    const viewport = viewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    showPopover(viewport);
+  }, [hasToasts]);
+
   const value: ToastContextValue = { showToast };
 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {toasts.length > 0 &&
-        createPortal(
-          <StyledToastViewport>
-            {toasts.map((toast) => (
-              <Toast
-                key={toast.id}
-                sizePreset={toast.sizePreset}
-                textItalic={toast.textItalic}
-                textSize={toast.textSize}
-                textTone={toast.textTone}
-                tone={toast.tone}
-                onClick={() => dismiss(toast.id)}
-              >
-                {toast.message}
-              </Toast>
-            ))}
-          </StyledToastViewport>,
-          document.body
-        )}
+      {hasToasts && (
+        <StyledToastViewport popover={POPOVER_MANUAL} ref={viewportRef}>
+          {toasts.map((toast) => (
+            <Toast
+              key={toast.id}
+              size={toast.size}
+              tone={toast.tone}
+              onClick={() => dismiss(toast.id)}
+            >
+              {toast.message}
+            </Toast>
+          ))}
+        </StyledToastViewport>
+      )}
     </ToastContext.Provider>
   );
 }

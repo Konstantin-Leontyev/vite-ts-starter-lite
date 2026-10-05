@@ -1,9 +1,9 @@
 /**
  * Файл: `src/pages/showcase/modal-settings/index.tsx`
  * Определяет панель настроек компонента Modal в витрине дизайн-системы.
- * Содержит контролы для изменения размера, фона, заголовка и подзаголовка
- * в реальном времени. Не настраивает тело модального окна: превью передаёт
- * витринный плейсхолдер через `children`.
+ * Содержит контролы для изменения размера, рамки и тени, фона, заголовка
+ * и подзаголовка в реальном времени. Не настраивает
+ * тело модального окна: превью передаёт витринный плейсхолдер через `children`.
  *
  * Основные задачи:
  * 1. Типизировать состояние витрины через `ModalWidgetState`
@@ -13,49 +13,61 @@
  *  - `src/pages/showcase/index.tsx` — подключает панель и синхронизирует состояние с превью виджета Modal
  */
 
-import { type ChangeEvent } from 'react';
-
-import { type CardBackground } from '@ui/card';
-import { Checkbox } from '@ui/checkbox';
 import { SIZE_PRESET_KEYS, type SizePreset } from '@ui/presets';
-import { type TextAlignPreset, type TextSizePreset, type TextTone } from '@ui/text';
+import { type SurfaceBackgroundPreset } from '@ui/surface';
+import {
+  type TextAlignPreset,
+  type TextSizePreset,
+  type TextTonePreset,
+} from '@ui/text';
+import { type TonePreset } from '@ui/tones';
 
 import { BackgroundListbox } from '../background-listbox';
+import { BorderGroup } from '../border-group';
 import { StyledSettingsForm } from '../showcase.styles';
 import { SizeListbox } from '../size-listbox';
-import { TitleGroup } from '../title-group';
+import { TextGroup } from '../text-group';
 
 /**
  * ModalWidgetState — представляет состояние настроек компонента Modal в витрине дизайн-системы.
- * Ключи совпадают с именами пропов компонента Modal, кроме витринных ключей:
- * `showSubtitle` управляет передачей подзаголовка в превью, `sizePreset` задаёт ширину
- * через `inlineSize` в родительской витрине.
+ * Ключи совпадают с именами пропов компонента Modal, кроме витринных ключей: `size`
+ * управляет передачей `inlineSize` в превью.
+ * Пустая строка заголовка или подзаголовка означает вызов без пропа. Отметка `Set*`
+ * живёт внутри TextGroup.
  * Используется для синхронизации значений между панелью управления и демонстрационным виджетом Modal.
  *
- * @property background — заливка карточки
- * @property showSubtitle — витринный ключ показа подзаголовка. Выключенный — в превью остаётся только заголовок
- * @property sizePreset — витринный ключ ширины панели. Витрина переводит его в `inlineSize` для Modal
+ * @property background — заливка поверхности
+ * @property borderTone — тон рамки
+ * @property showBorder — включает рамку
+ * @property showShadow — включает тень при включённой рамке
+ * @property size — витринный ключ ширины панели
  * @property subtitle — подзаголовок
  * @property subtitleAlign — выравнивание подзаголовка
- * @property subtitleSizePreset — размер подзаголовка
+ * @property subtitleItalic — включает курсив подзаголовка
+ * @property subtitleSize — размер подзаголовка
  * @property subtitleTone — тон подзаголовка
  * @property title — заголовок
  * @property titleAlign — выравнивание заголовка
- * @property titleSizePreset — размер заголовка
+ * @property titleItalic — включает курсив заголовка
+ * @property titleSize — размер заголовка
  * @property titleTone — тон заголовка
  */
 export type ModalWidgetState = {
-  background: CardBackground;
-  showSubtitle: boolean;
-  sizePreset: SizePreset;
+  background: SurfaceBackgroundPreset;
+  borderTone: TonePreset;
+  showBorder: boolean;
+  showShadow: boolean;
+  size: SizePreset;
   subtitle: string;
   subtitleAlign?: TextAlignPreset;
-  subtitleSizePreset?: TextSizePreset;
-  subtitleTone: TextTone;
+  subtitleItalic: boolean;
+  subtitleSize?: TextSizePreset;
+  subtitleTone: TextTonePreset;
   title: string;
   titleAlign?: TextAlignPreset;
-  titleSizePreset: TextSizePreset;
-  titleTone: TextTone;
+  titleItalic: boolean;
+  titleSize: TextSizePreset;
+  titleTone: TextTonePreset;
 };
 
 /**
@@ -84,8 +96,17 @@ export function ModalSettings({ onChange, state }: ModalSettingsProps) {
       <SizeListbox
         label="Size:"
         sizes={SIZE_PRESET_KEYS}
-        value={state.sizePreset}
-        onChange={(size) => onChange('sizePreset', size)}
+        value={state.size}
+        onChange={(size) => onChange('size', size)}
+      />
+
+      <BorderGroup
+        borderTone={state.borderTone}
+        showBorder={state.showBorder}
+        showShadow={state.showShadow}
+        onBorderToneChange={(tone) => onChange('borderTone', tone)}
+        onShowBorderChange={(show) => onChange('showBorder', show)}
+        onShowShadowChange={(show) => onChange('showShadow', show)}
       />
 
       <BackgroundListbox
@@ -94,40 +115,49 @@ export function ModalSettings({ onChange, state }: ModalSettingsProps) {
         onChange={(background) => onChange('background', background)}
       />
 
-      <TitleGroup
+      <TextGroup
         align={state.titleAlign}
+        contents={[
+          {
+            value: state.title,
+            onChange: (value) => onChange('title', value),
+          },
+        ]}
+        italic={state.titleItalic}
         labelPrefix="Title"
-        size={state.titleSizePreset}
-        title={state.title}
-        tone={state.titleTone}
+        size={state.titleSize}
+        tones={[
+          {
+            value: state.titleTone,
+            onChange: (tone) => onChange('titleTone', tone),
+          },
+        ]}
         onAlignChange={(align) => onChange('titleAlign', align)}
-        onSizeChange={(size) => onChange('titleSizePreset', size)}
-        onTitleChange={(title) => onChange('title', title)}
-        onToneChange={(tone) => onChange('titleTone', tone)}
+        onItalicChange={(value) => onChange('titleItalic', value)}
+        onSizeChange={(size) => onChange('titleSize', size)}
       />
 
-      <Checkbox
-        checked={state.showSubtitle}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('showSubtitle', event.target.checked)
-        }
-      >
-        Show subtitle
-      </Checkbox>
-
-      {state.showSubtitle && (
-        <TitleGroup
-          align={state.subtitleAlign}
-          labelPrefix="Subtitle"
-          size={state.subtitleSizePreset}
-          title={state.subtitle}
-          tone={state.subtitleTone}
-          onAlignChange={(align) => onChange('subtitleAlign', align)}
-          onSizeChange={(size) => onChange('subtitleSizePreset', size)}
-          onTitleChange={(title) => onChange('subtitle', title)}
-          onToneChange={(tone) => onChange('subtitleTone', tone)}
-        />
-      )}
+      <TextGroup
+        align={state.subtitleAlign}
+        contents={[
+          {
+            value: state.subtitle,
+            onChange: (value) => onChange('subtitle', value),
+          },
+        ]}
+        italic={state.subtitleItalic}
+        labelPrefix="Subtitle"
+        size={state.subtitleSize}
+        tones={[
+          {
+            value: state.subtitleTone,
+            onChange: (tone) => onChange('subtitleTone', tone),
+          },
+        ]}
+        onAlignChange={(align) => onChange('subtitleAlign', align)}
+        onItalicChange={(value) => onChange('subtitleItalic', value)}
+        onSizeChange={(size) => onChange('subtitleSize', size)}
+      />
     </StyledSettingsForm>
   );
 }

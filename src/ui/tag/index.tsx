@@ -4,13 +4,10 @@
  *
  * Поддерживает:
  *  - layout-пропсы: отступы, позиционирование, размеры
- *  - размерный ряд через проп `sizePreset`
+ *  - размерный ряд через проп `size`
  *  - семантический тон через проп `tone`
  *  - форму через проп `shape`
  *  - содержимое через `children`. Без `children` рендерится только точка-индикатор
- *  - тон текста через проп `textTone`
- *  - размер текста через проп `textSize`
- *  - курсив текста через проп `textItalic`
  *  - точку-индикатор через проп `showDot`
  *  - тон точки через проп `dotTone`
  *  - рамку через проп `showBorder`
@@ -21,17 +18,17 @@
  * Основные задачи:
  * 1. Экспортировать компонент Tag
  * 2. Типизировать пропсы через `TagProps`
- * 3. Реэкспортировать публичное API стилей: `TAG_SIZE_PRESET_KEYS`, `getTagTextSize`
- *    и тип `TagSizePreset`
+ * 3. Экспортировать тип `TagShowDotProps`
+ * 4. Реэкспортировать публичное API стилей: `TAG_SIZE_PRESET_KEYS` и тип `TagSizePreset`
  *
  * Потребители:
  *  - страницы и виджеты приложения — показывают статусы и метки
  *  - `src/pages/showcase` — демонстрирует состояния в витрине
  */
 
-import { type ComponentPropsWithRef, type ReactNode } from 'react';
+import { type ComponentPropsWithRef } from 'react';
 
-import { Text, type TextSizePreset, type TextTone } from '@ui/text';
+import { Text } from '@ui/text';
 import { type TonePreset } from '@ui/tones';
 
 import {
@@ -44,23 +41,27 @@ import {
 } from './tag.styles';
 
 /**
- * TagProps — представляет пропсы компонента Tag.
+ * TagShowDotProps — представляет пропсы точки Tag.
+ * Поле `dotTone` допустимо, пока `showDot` не выключен: дефолт флага — точка есть.
  *
- * @property children — содержимое метки
  * @property dotTone — тон точки
  * @property showDot — включает точку-индикатор
- * @property textItalic — включает курсив текста
- * @property textSize — размер текста
- * @property textTone — тон текста
  */
-type TagProps = {
-  children?: ReactNode;
-  dotTone?: TonePreset;
-  showDot?: boolean;
-  textItalic?: boolean;
-  textSize?: TextSizePreset;
-  textTone?: TextTone;
-} & TagStyleProps &
+type TagShowDotProps =
+  | {
+      dotTone?: never;
+      showDot: false;
+    }
+  | {
+      dotTone?: TonePreset;
+      showDot?: true;
+    };
+
+/**
+ * TagProps — представляет пропсы компонента Tag.
+ */
+type TagProps = TagShowDotProps &
+  TagStyleProps &
   Omit<ComponentPropsWithRef<'span'>, 'className' | 'style' | keyof TagStyleProps>;
 
 /**
@@ -81,23 +82,15 @@ export function Tag({
   children,
   dotTone,
   showDot = DEFAULT_TAG_SHOW_DOT,
-  sizePreset,
-  textItalic,
-  textSize,
-  textTone,
+  size,
   tone,
   ...rest
 }: TagProps) {
   return (
-    <StyledTag sizePreset={sizePreset} tone={tone} {...rest}>
+    <StyledTag size={size} tone={tone} {...rest}>
       {showDot && <StyledTagDot dotTone={dotTone} />}
       {Boolean(children) && (
-        <Text
-          ellipsis
-          italic={textItalic}
-          sizePreset={textSize ?? getTagTextSize(sizePreset)}
-          tone={textTone}
-        >
+        <Text ellipsis size={getTagTextSize(size)}>
           {children}
         </Text>
       )}
@@ -105,5 +98,4 @@ export function Tag({
   );
 }
 
-/* eslint-disable react-refresh/only-export-components -- публичные типы, пресеты и мост размера текста */
-export { TAG_SIZE_PRESET_KEYS, getTagTextSize, type TagSizePreset };
+export { TAG_SIZE_PRESET_KEYS, type TagShowDotProps, type TagSizePreset };

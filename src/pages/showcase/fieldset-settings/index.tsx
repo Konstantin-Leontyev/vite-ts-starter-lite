@@ -2,7 +2,6 @@
  * Файл: `src/pages/showcase/fieldset-settings/index.tsx`
  * Определяет панель настроек компонента Fieldset в витрине дизайн-системы.
  * Содержит контролы для изменения тона рамки и заголовка в реальном времени.
- * Оставляет демо-группу RadioButton в превью без настроек — у RadioButton своя панель.
  *
  * Основные задачи:
  * 1. Типизировать состояние витрины через `FieldsetWidgetState`
@@ -12,8 +11,10 @@
  *  - `src/pages/showcase/index.tsx` — подключает панель и синхронизирует состояние с превью виджета группы полей
  */
 
-import { FIELDSET_BORDER_TONE_KEYS, type FieldsetBorderTone } from '@ui/fieldset';
-import { type TextSizePreset, type TextTone } from '@ui/text';
+import {
+  FIELDSET_BORDER_TONE_PRESET_KEYS,
+  type FieldsetBorderTonePreset,
+} from '@ui/fieldset';
 
 import { StyledSettingsForm } from '../showcase.styles';
 import { TextGroup } from '../text-group';
@@ -27,18 +28,12 @@ import { ToneListbox } from '../tone-listbox';
  * группой полей.
  *
  * @property borderTone — тон рамки
- * @property label — заголовок в `<legend>`
- * @property legendItalic — включает курсив заголовка
- * @property legendSizePreset — размер заголовка
- * @property legendTone — тон заголовка
+ * @property legend — заголовок в `<legend>`
  * @property selected — витринный ключ активного варианта демо-группы
  */
 export type FieldsetWidgetState = {
-  borderTone: FieldsetBorderTone;
-  label: string;
-  legendItalic: boolean;
-  legendSizePreset: TextSizePreset;
-  legendTone: TextTone;
+  borderTone: FieldsetBorderTonePreset;
+  legend: string;
   selected: 'a' | 'b';
 };
 
@@ -67,7 +62,7 @@ export function FieldsetSettings({ onChange, state }: FieldsetSettingsProps) {
     <StyledSettingsForm onSubmit={(event) => event.preventDefault()}>
       <ToneListbox
         label="Border tone:"
-        tones={FIELDSET_BORDER_TONE_KEYS}
+        tones={FIELDSET_BORDER_TONE_PRESET_KEYS}
         value={state.borderTone}
         onChange={(tone) => onChange('borderTone', tone)}
       />
@@ -75,21 +70,11 @@ export function FieldsetSettings({ onChange, state }: FieldsetSettingsProps) {
       <TextGroup
         contents={[
           {
-            value: state.label,
-            onChange: (value) => onChange('label', value),
+            value: state.legend,
+            onChange: (value) => onChange('legend', value),
           },
         ]}
-        italic={state.legendItalic}
         labelPrefix="Legend"
-        size={state.legendSizePreset}
-        tones={[
-          {
-            value: state.legendTone,
-            onChange: (tone) => onChange('legendTone', tone),
-          },
-        ]}
-        onItalicChange={(value) => onChange('legendItalic', value)}
-        onSizeChange={(size) => onChange('legendSizePreset', size)}
       />
     </StyledSettingsForm>
   );

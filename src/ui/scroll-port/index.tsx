@@ -16,7 +16,6 @@
  *
  * Потребители:
  *  - `@ui/table` — оборачивает таблицу в прокручиваемый контейнер
- *  - `@ui/combobox` — прокручивает список опций
  *  - `src/pages/showcase` — демонстрирует состояния в витрине
  */
 import {
@@ -25,16 +24,21 @@ import {
   useRef,
   type ComponentPropsWithRef,
   type ReactNode,
-  type Ref,
 } from 'react';
 
+import { assignRef } from '@ui/ref';
+import { resolvePaddingEdge, type SpacingValue } from '@ui/spacing';
+
 import {
+  DEFAULT_SCROLL_PORT_PADDING_BLOCK_END,
+  DEFAULT_SCROLL_PORT_PADDING_BLOCK_START,
+  DEFAULT_SCROLL_PORT_PADDING_INLINE_END,
+  DEFAULT_SCROLL_PORT_PADDING_INLINE_START,
   DEFAULT_SCROLL_PORT_SHOW_VEIL,
   StyledScrollPortContainer,
   StyledScrollPortRoot,
   StyledScrollPortViewport,
   omitScrollPortRoutedPaddingProps,
-  resolveScrollPortPaddingEdge,
   splitLayoutProps,
   type ScrollPortStyleProps,
 } from './scroll-port.styles';
@@ -46,34 +50,35 @@ import {
 const SCROLL_PORT_VEIL_EDGE_THRESHOLD_PX = 1;
 
 /**
+ * ScrollPortShowVeilProps — представляет пропсы вуали ScrollPort.
+ * Поле `veilInsetInline` допустимо, пока `showVeil` не выключен: дефолт флага — вуаль есть.
+ *
+ * @property showVeil — включает градиентные вуали на краях при прокрутке
+ * @property veilInsetInline — выступ вуали за inline-край
+ */
+type ScrollPortShowVeilProps =
+  | {
+      showVeil: false;
+      veilInsetInline?: never;
+    }
+  | {
+      showVeil?: true;
+      veilInsetInline?: SpacingValue;
+    };
+
+/**
  * ScrollPortProps — представляет пропсы компонента ScrollPort.
  *
  * @property children — прокручиваемое содержимое
  */
-type ScrollPortProps = ScrollPortStyleProps &
+type ScrollPortProps = Omit<ScrollPortStyleProps, 'showVeil' | 'veilInsetInline'> &
+  ScrollPortShowVeilProps &
   Omit<
     ComponentPropsWithRef<'div'>,
     'children' | 'className' | 'style' | keyof ScrollPortStyleProps
   > & {
     children: ReactNode;
   };
-
-/**
- * assignRef — записывает значение в callback-ref или object-ref.
- *
- * @param ref ссылка вызывающего кода
- * @param value DOM-узел или `null`
- */
-function assignRef<T>(ref: Ref<T> | undefined, value: null | T): void {
-  if (typeof ref === 'function') {
-    ref(value);
-    return;
-  }
-
-  if (ref) {
-    ref.current = value;
-  }
-}
 
 /**
  * resolveScrollPortVeilEdges — вычисляет видимость вуалей по позиции скролла.
@@ -97,7 +102,7 @@ function resolveScrollPortVeilEdges(viewport: HTMLElement): {
 
 /**
  * applyScrollPortVeilEdges — выставляет `data-veil-block-*` на корне по позиции скролла.
- * Пишет в DOM напрямую: без React-state, чтобы не плодить ререндеры на `scroll`.
+ * Пишет в DOM напрямую, без состояния React, чтобы событие `scroll` не вызывало лишние отрисовки.
  *
  * @param root корневой узел ScrollPort
  * @param viewport вьюпорт прокрутки или `null`
@@ -151,10 +156,11 @@ export function ScrollPort({
   ...rest
 }: ScrollPortProps) {
   const { layoutProps, restProps } = splitLayoutProps(rest);
-  const paddingBlockStart = resolveScrollPortPaddingEdge(layoutProps, 'blockStart');
-  const paddingBlockEnd = resolveScrollPortPaddingEdge(layoutProps, 'blockEnd');
-  const paddingInlineStart = resolveScrollPortPaddingEdge(layoutProps, 'inlineStart');
-  const paddingInlineEnd = resolveScrollPortPaddingEdge(layoutProps, 'inlineEnd');
+  const paddingInlineEnd = resolvePaddingEdge(
+    layoutProps,
+    'inlineEnd',
+    DEFAULT_SCROLL_PORT_PADDING_INLINE_END
+  );
   const rootLayoutProps = omitScrollPortRoutedPaddingProps(layoutProps);
   const isVeilEnabled = showVeil ?? DEFAULT_SCROLL_PORT_SHOW_VEIL;
   const rootNodeRef = useRef<HTMLDivElement | null>(null);
@@ -206,16 +212,28 @@ export function ScrollPort({
     <StyledScrollPortRoot
       gutterInlineEnd={paddingInlineEnd}
       ref={rootNodeRef}
-      showVeil={showVeil}
+      showVeil={isVeilEnabled}
       veilInsetInline={veilInsetInline}
       {...rootLayoutProps}
     >
       <StyledScrollPortContainer>
         <StyledScrollPortViewport
-          paddingBlockEnd={paddingBlockEnd}
-          paddingBlockStart={paddingBlockStart}
+          paddingBlockEnd={resolvePaddingEdge(
+            layoutProps,
+            'blockEnd',
+            DEFAULT_SCROLL_PORT_PADDING_BLOCK_END
+          )}
+          paddingBlockStart={resolvePaddingEdge(
+            layoutProps,
+            'blockStart',
+            DEFAULT_SCROLL_PORT_PADDING_BLOCK_START
+          )}
           paddingInlineEnd={paddingInlineEnd}
-          paddingInlineStart={paddingInlineStart}
+          paddingInlineStart={resolvePaddingEdge(
+            layoutProps,
+            'inlineStart',
+            DEFAULT_SCROLL_PORT_PADDING_INLINE_START
+          )}
           ref={setViewportRef}
           {...restProps}
         >

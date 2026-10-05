@@ -5,9 +5,8 @@
  * Основные задачи:
  * 1. Типизировать пропсы через `RadioButtonStyleProps`
  * 2. Хранить размер кружка в `radioSize`
- * 3. Предоставить функцию `getRadioButtonTextSize`
- * 4. Предоставить styled-узлы `StyledRadioButtonRoot` и `StyledRadioButtonControl`
- * 5. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
+ * 3. Предоставить styled-узлы `StyledRadioButtonRoot` и `StyledRadioButtonControl`
+ * 4. Реэкспортировать `splitLayoutProps` для сборки в `index.tsx`
  *
  * Потребители:
  *  - `src/ui/radio-button/index.tsx` — собирает компонент RadioButton и реэкспортирует публичное API
@@ -16,10 +15,10 @@
 import styled from 'styled-components';
 
 import { getBorderStyles } from '@ui/border';
+import { getChoiceControlRootStyles } from '@ui/choice-control';
 import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
-import { DEFAULT_SIZE_PRESET, getTextSize, type SizePreset } from '@ui/presets';
+import { DEFAULT_SIZE_PRESET, type SizePreset } from '@ui/presets';
 import { getSpacingValue, type SpacingValue } from '@ui/spacing';
-import { type TextSizePreset } from '@ui/text';
 import { getTheme, type AppTheme } from '@ui/theme';
 
 export { splitLayoutProps } from '@ui/layout';
@@ -37,72 +36,46 @@ const radioSize = {
 /**
  * getRadioSize — возвращает CSS-размер стороны кружка.
  *
- * @param sizePreset размер из ряда контролов
+ * @param size размер из ряда контролов
  * @returns длина стороны в rem
  */
-function getRadioSize(sizePreset: SizePreset): string {
-  return getSpacingValue(radioSize[sizePreset]);
-}
-
-/**
- * getRadioButtonTextSize — возвращает размер подписи по `sizePreset`.
- * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
- *
- * @param sizePreset размер кружка
- * @returns метка размера текста из `TextSizePreset` для подписи справа от кружка
- */
-export function getRadioButtonTextSize(sizePreset?: SizePreset): TextSizePreset {
-  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
+function getRadioSize(size: SizePreset): string {
+  return getSpacingValue(radioSize[size]);
 }
 
 /**
  * StyledRadioButtonRoot — задаёт корневой узел компонента RadioButton.
  * Базируется на `<label>` и поддерживает пропсы из `LayoutProps`.
  *
- * Встроенные стили:
- *  - `display: inline-grid` — строчный контейнер под кружок и подпись
- *  - `grid-auto-flow: column` — кружок и подпись в одной строке
- *  - `gap` — отступ между кружком и подписью
- *  - `justify-content: start` — при растяжении родителем подпись остаётся у кружка
- *
  * Генерация стилей:
- *  - `getLayoutStyles` — отступы, позиционирование, размеры
+ *  - `getChoiceControlRootStyles` — ряд кружка и подписи, layout-пропсы
  */
 export const StyledRadioButtonRoot = styled.label.withConfig({
   shouldForwardProp: (prop) => !LAYOUT_PROP_NAMES.has(prop),
 })<LayoutProps>`
-  display: inline-grid;
-  grid-auto-flow: column;
-  gap: ${getSpacingValue(8)};
-  align-items: center;
-  justify-content: start;
-  cursor: pointer;
-  ${(props) => getLayoutStyles(props)}
+  ${(props) => getChoiceControlRootStyles(props)}
 `;
 
 /**
  * RadioButtonStyleProps — представляет пропсы стилизации RadioButton и layout-пропсы.
  *
- * @property sizePreset — размер кружка
+ * @property size — размер кружка
  */
 export type RadioButtonStyleProps = LayoutProps & {
-  sizePreset?: SizePreset;
+  size?: SizePreset;
 };
 
 /**
  * RADIO_BUTTON_CONTROL_PROP_NAMES — объединяет имена layout-пропсов и пропсов стилизации кружка RadioButton.
  */
-const RADIO_BUTTON_CONTROL_PROP_NAMES = new Set<string>([
-  ...LAYOUT_PROP_NAMES,
-  'sizePreset',
-]);
+const RADIO_BUTTON_CONTROL_PROP_NAMES = new Set<string>([...LAYOUT_PROP_NAMES, 'size']);
 
 /**
  * getRadioButtonControlStyles — возвращает CSS-правила для узла `StyledRadioButtonControl`:
  * габариты, рамку с тенью и состояние `checked`.
  *
  * Как работает:
- * 1. Берёт тему и подставляет дефолт `sizePreset`
+ * 1. Берёт тему и подставляет дефолт `size`
  * 2. Собирает габариты, сброс layout-рамки UA через `border: none`, заливку
  *    `surface`, рамку с тенью через `getBorderStyles` без флагов и
  *    `border-radius: 50%`
@@ -116,13 +89,11 @@ function getRadioButtonControlStyles(
   props: RadioButtonStyleProps & { theme: AppTheme }
 ): string {
   const theme = getTheme(props);
-  const { sizePreset = DEFAULT_SIZE_PRESET } = props;
-  const size = getRadioSize(sizePreset);
+  const { size = DEFAULT_SIZE_PRESET } = props;
 
   return `
-    flex-shrink: 0;
-    inline-size: ${size};
-    block-size: ${size};
+    inline-size: ${getRadioSize(size)};
+    block-size: ${getRadioSize(size)};
     appearance: none;
     border: none;
     background-color: ${theme.colors.surface};

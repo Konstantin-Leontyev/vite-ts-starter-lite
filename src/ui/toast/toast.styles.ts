@@ -4,11 +4,10 @@
  *
  * Основные задачи:
  * 1. Типизировать пропсы через `ToastStyleProps`
- * 2. Предоставить функцию `getToastTextSize`
- * 3. Предоставить styled-узел `StyledToast`
+ * 2. Предоставить styled-узел `StyledToast`
  *
  * Потребители:
- *  - `src/ui/toast/index.tsx` — собирает компонент Toast и реэкспортирует публичное API
+ *  - `src/ui/toast/index.tsx` — собирает компонент Toast
  */
 
 import styled from 'styled-components';
@@ -20,53 +19,40 @@ import {
   DEFAULT_SIZE_PRESET,
   getMinBlockSize,
   getPadding,
-  getTextSize,
   resolveBlockRadius,
   type SizePreset,
 } from '@ui/presets';
 import { getSpacingValue } from '@ui/spacing';
-import { type TextSizePreset } from '@ui/text';
 import { getTheme, type AppTheme } from '@ui/theme';
 import { DEFAULT_TONE, getToneColor, type TonePreset } from '@ui/tones';
 
 /**
- * getToastTextSize — возвращает размер текста сообщения по `sizePreset`.
- * Подставляет `DEFAULT_SIZE_PRESET`, когда размер не задан.
- *
- * @param sizePreset размер уведомления
- * @returns метка размера текста из `TextSizePreset` для текста сообщения
- */
-export function getToastTextSize(sizePreset?: SizePreset): TextSizePreset {
-  return getTextSize(sizePreset ?? DEFAULT_SIZE_PRESET);
-}
-
-/**
  * ToastStyleProps — представляет пропсы стилизации Toast и layout-пропсы.
  *
- * @property sizePreset — размер компонента
+ * @property size — размер компонента
  * @property tone — семантический тон. Задаёт акцентную полосу слева
  *   через `border-inline-start`, а не заливку
  */
 export type ToastStyleProps = LayoutProps & {
-  sizePreset?: SizePreset;
+  size?: SizePreset;
   tone?: TonePreset;
 };
 
 /**
  * TOAST_PROP_NAMES — объединяет имена layout-пропсов и пропсов стилизации Toast.
  */
-const TOAST_PROP_NAMES = new Set<string>([...LAYOUT_PROP_NAMES, 'sizePreset', 'tone']);
+const TOAST_PROP_NAMES = new Set<string>([...LAYOUT_PROP_NAMES, 'size', 'tone']);
 
 /**
  * getToastStyles — возвращает CSS-правила для корня `StyledToast`:
- * размер, отступы, фон, цвет, рамку с тенью и акцентную полосу.
+ * размер, отступы, фон, рамку с тенью и акцентную полосу.
  * Рамка — `box-shadow` вне layout-box: блочные стороны не входят в пол
  * `min-block-size`, однострочный Toast держит инвариант §7.3. Реальный `border`
  * остаётся только у акцентной полосы — инлайновая сторона высоту не растит.
  *
  * Как работает:
- * 1. Берёт тему и подставляет дефолты `sizePreset` и `tone`
- * 2. Собирает габариты, отступы, заливку `surface` и цвет текста
+ * 1. Берёт тему и подставляет дефолты `size` и `tone`
+ * 2. Собирает габариты, отступы и заливку `surface`
  * 3. Кладёт рамку с тенью через `getBorderStyles` без флагов — рамка с тенью
  *    по дефолтам
  * 4. Красит акцентную полосу слева через `border-inline-start` цветом тона
@@ -77,16 +63,15 @@ const TOAST_PROP_NAMES = new Set<string>([...LAYOUT_PROP_NAMES, 'sizePreset', 't
  */
 function getToastStyles(props: ToastStyleProps & { theme: AppTheme }): string {
   const theme = getTheme(props);
-  const { sizePreset = DEFAULT_SIZE_PRESET, tone = DEFAULT_TONE } = props;
-  const minBlockSize = getMinBlockSize(sizePreset);
-  const padding = getPadding(sizePreset);
+  const { size = DEFAULT_SIZE_PRESET, tone = DEFAULT_TONE } = props;
+  const minBlockSize = getMinBlockSize(size);
+  const padding = getPadding(size);
 
   return `
     min-block-size: ${minBlockSize};
     padding-block: ${padding.block};
     padding-inline: ${padding.inline};
     background-color: ${theme.colors.surface};
-    color: ${theme.colors.default};
     ${getBorderStyles(theme)}
     border-inline-start: ${getSpacingValue(4)} solid ${getToneColor(theme, tone, theme.colors.border)};
     border-radius: ${resolveBlockRadius(DEFAULT_SHAPE_PRESET, minBlockSize)};
@@ -102,7 +87,7 @@ function getToastStyles(props: ToastStyleProps & { theme: AppTheme }): string {
  *  - `align-content: center` — центрирует текст по вертикали
  *
  * Генерация стилей:
- *  - `getToastStyles` — размер, отступы, фон, цвет, рамка с тенью, акцентная полоса
+ *  - `getToastStyles` — размер, отступы, фон, рамка с тенью, акцентная полоса
  *  - `getLayoutStyles` — отступы, позиционирование, размеры
  *
  * Высота задана через `min-block-size` без фиксированного `block-size`:

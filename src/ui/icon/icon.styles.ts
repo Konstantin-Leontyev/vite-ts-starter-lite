@@ -10,15 +10,22 @@
  * 3. Предоставить функции `getIconSize` и `getIconPadding`, дефолт
  *    `DEFAULT_ICON_POSITION`, перечни `ICON_POSITION_KEYS`,
  *    `ICON_SHAPE_PRESET_KEYS`, `ICON_SIZE_PRESET_KEYS` и `ICON_SETTING_PROP_NAMES`,
- *    а также хелперы секции на родителе: `getIconPositionStyles` и
- *    `resolveIconStateBackground`
+ *    а также хелперы секции на родителе: `getIconPositionStyles`,
+ *    `resolveIconShape` и `resolveIconStateBackground`
  * 4. Предоставить styled-узел `StyledIcon`
  *
  * Потребители:
  *  - `src/ui/icon/index.tsx` — собирает компонент Icon и реэкспортирует
  *    публичное API
- *  - контролы с секцией иконки, например Button, Listbox, Combobox и RangeInput —
- *    подключают хелперы секции и читают позицию через `@ui/icon`
+ *  - `@ui/button`, `@ui/search-field` и `@ui/open-control` — читают
+ *    `getIconPositionStyles` и `resolveIconStateBackground`
+ *  - `@ui/segment-button-parts` — читает `resolveIconStateBackground`
+ *  - `@ui/toolbar` — читает `resolveIconShape` для формы действий
+ *  - `@ui/button`, `@ui/input` и `@ui/search-field` — читают `resolveIconShape`
+ *    для формы секции иконки или сброса; SearchField — для обоих
+ *  - `@ui/listbox` и `@ui/range-input` —
+ *    читают `resolveIconShape` для формы окна сброса и шеврона
+ *  - `src/pages/showcase` — читает `getIconPadding`
  *  - `src/ui/card/card.styles.ts` — читает `getIconSize` для резерва высоты
  *    ряда действий шапки
  */
@@ -29,13 +36,15 @@ import {
   BORDER_PROP_NAMES,
   DEFAULT_SHOW_SHADOW,
   getBorderStyles,
-  type BorderProps,
+  type ShowBorderProps,
 } from '@ui/border';
 import { LAYOUT_PROP_NAMES, getLayoutStyles, type LayoutProps } from '@ui/layout';
 import {
+  DEFAULT_SHAPE_PRESET,
   DEFAULT_SIZE_PRESET,
   minBlockSize,
   resolveBlockRadius,
+  type ShapePreset,
   type SizePreset,
 } from '@ui/presets';
 import { getSpacingValue, type SpacingValue } from '@ui/spacing';
@@ -44,6 +53,8 @@ import {
   DEFAULT_TONE,
   getToneColorKey,
   resolveColorMix,
+  resolvePressedBackground,
+  resolveVeilBackground,
   type TonePreset,
 } from '@ui/tones';
 
@@ -75,13 +86,13 @@ export const ICON_SIZE_PRESET_KEYS = Object.freeze(
 );
 
 /**
- * getIconSize — возвращает ключ шкалы габарита окна иконки по `sizePreset`.
+ * getIconSize — возвращает ключ шкалы габарита окна иконки по `size`.
  *
- * @param sizePreset размер окна иконки
+ * @param size размер окна иконки
  * @returns ключ шкалы отступов из `@ui/spacing`
  */
-export function getIconSize(sizePreset: IconSizePreset): SpacingValue {
-  return iconSize[sizePreset];
+export function getIconSize(size: IconSizePreset): SpacingValue {
+  return iconSize[size];
 }
 
 /**
@@ -98,20 +109,20 @@ const iconPadding = {
 } as const satisfies Record<IconSizePreset, SpacingValue>;
 
 /**
- * getIconPadding — возвращает ключ шкалы внутреннего отступа окна иконки по `sizePreset`.
+ * getIconPadding — возвращает ключ шкалы внутреннего отступа окна иконки по `size`.
  * Мост размера → отступ для витрины и вызывающего кода: без явного `padding` окно
- * берёт значение из ряда. Панель синхронизирует состояние при смене `sizePreset`.
+ * берёт значение из ряда.
  *
- * @param sizePreset размер окна иконки
+ * @param size размер окна иконки
  * @returns ключ шкалы отступов из `@ui/spacing`
  */
-export function getIconPadding(sizePreset: IconSizePreset): SpacingValue {
-  return iconPadding[sizePreset];
+export function getIconPadding(size: IconSizePreset): SpacingValue {
+  return iconPadding[size];
 }
 
 /**
  * ICON_TINY_ROUNDED_RADIUS — задаёт радиус формы `rounded` для размера `tiny`.
- * Паритет с боксом Checkbox размера `small`; ключи канона берут радиус из
+ * Паритет с боксом Checkbox размера `small`. Ключи канона берут радиус из
  * `resolveBlockRadius`.
  */
 const ICON_TINY_ROUNDED_RADIUS = 4;
@@ -133,8 +144,21 @@ export const ICON_SHAPE_PRESET_KEYS = Object.freeze([
 ] as const satisfies readonly IconShapePreset[]);
 
 /**
+ * resolveIconShape — принимает форму контрола и возвращает форму окна иконки.
+ * `pill` даёт `round`, иначе `rounded`.
+ *
+ * @param shape форма контрола
+ * @returns форма окна иконки
+ */
+export function resolveIconShape(
+  shape: ShapePreset = DEFAULT_SHAPE_PRESET
+): IconShapePreset {
+  return shape === 'pill' ? 'round' : 'rounded';
+}
+
+/**
  * resolveIconBorderRadius — возвращает значение для CSS-свойства `border-radius`
- * по `shape` и `sizePreset`.
+ * по `shape` и `size`.
  *
  * Как работает:
  * 1. Для `square` отдаёт `0`
@@ -144,13 +168,10 @@ export const ICON_SHAPE_PRESET_KEYS = Object.freeze([
  *    `resolveBlockRadius` с формой `rounded` и габаритом окна
  *
  * @param shape форма окна иконки
- * @param sizePreset размер окна иконки
+ * @param size размер окна иконки
  * @returns значение для CSS-свойства `border-radius`
  */
-function resolveIconBorderRadius(
-  shape: IconShapePreset,
-  sizePreset: IconSizePreset
-): string {
+function resolveIconBorderRadius(shape: IconShapePreset, size: IconSizePreset): string {
   if (shape === 'square') {
     return '0';
   }
@@ -159,17 +180,17 @@ function resolveIconBorderRadius(
     return '50%';
   }
 
-  if (sizePreset === 'tiny') {
+  if (size === 'tiny') {
     return getSpacingValue(ICON_TINY_ROUNDED_RADIUS);
   }
 
-  return resolveBlockRadius('rounded', getSpacingValue(getIconSize(sizePreset)));
+  return resolveBlockRadius('rounded', getSpacingValue(getIconSize(size)));
 }
 
 /**
  * IconSurface — представляет статичную поверхность окна иконки: заливку и цвет глифа.
- * Состояния наведения и нажатия поверхность не включает — их родитель или сам Icon
- * при `showHover` передаёт каналом `--icon-state-background`.
+ * Состояния наведения и нажатия поверхность не включает. Секция-окно передаёт
+ * их каналом `--icon-state-background`. Кнопка красит заливку сама.
  *
  * @property backgroundColor — заливка окна в покое. Нейтральный тон заливку не красит
  * @property color — цвет глифа. Нейтральный тон без `iconFill` наследует цвет контекста
@@ -228,7 +249,8 @@ type IconSectionNeutralChannelPolicy = 'none' | 'veil';
 /**
  * resolveIconStateBackground — возвращает значение канала `--icon-state-background`
  * для секции иконки на родителе. Цветной `iconTone` — сдвиг к `shade`. Нейтральный —
- * вуаль или `undefined` по `neutralPolicy`. Button не ставит канал на нейтрали.
+ * вуаль или `undefined` по `neutralPolicy`. Политика `'none'` оставляет канал
+ * пустым, когда подсветку нейтрали несёт заливка узла.
  *
  * @param theme текущая тема
  * @param iconTone тон секции иконки
@@ -298,6 +320,7 @@ export function getIconPositionStyles(): string {
 /**
  * IconStyleProps — представляет пропсы стилизации Icon и layout-пропсы.
  *
+ * @property active — включает зафиксированное нажатое состояние у `as="button"`
  * @property iconFill — тон глифа иконки при нейтральном `iconTone`
  * @property iconTone — тон заливки окна иконки
  * @property interactive — включает канал состояний `--icon-state-background`
@@ -306,17 +329,25 @@ export function getIconPositionStyles(): string {
  * @property showHover — включает запись канала состояний на `:hover` и
  *   `:focus-visible`. Внутри контрола с собственным слоем наведения выключается,
  *   чтобы не было двойной подсветки
- * @property sizePreset — размер окна иконки
+ * @property size — размер окна иконки
  */
 export type IconStyleProps = LayoutProps &
-  BorderProps & {
+  ShowBorderProps & {
+    active?: boolean;
     iconFill?: TonePreset;
     iconTone?: TonePreset;
     interactive?: boolean;
     shape?: IconShapePreset;
     showHover?: boolean;
-    sizePreset?: IconSizePreset;
+    size?: IconSizePreset;
   };
+
+/**
+ * IconStyledProps — представляет пропсы стилизации узла `StyledIcon`.
+ *
+ * @property isButton — включает ветку заливки и тени как у Button
+ */
+type IconStyledProps = IconStyleProps & { isButton?: boolean };
 
 /**
  * ICON_PROP_NAMES — объединяет имена layout-пропсов и пропсов стилизации Icon.
@@ -324,12 +355,14 @@ export type IconStyleProps = LayoutProps &
 const ICON_PROP_NAMES = new Set<string>([
   ...LAYOUT_PROP_NAMES,
   ...BORDER_PROP_NAMES,
+  'active',
   'iconFill',
   'iconTone',
   'interactive',
+  'isButton',
   'shape',
   'showHover',
-  'sizePreset',
+  'size',
 ]);
 
 /**
@@ -359,54 +392,121 @@ const DEFAULT_ICON_INTERACTIVE = false;
 const DEFAULT_ICON_SHOW_HOVER = true;
 
 /**
+ * DEFAULT_ICON_ACTIVE — задаёт зафиксированное нажатое состояние по умолчанию.
+ * Используется, когда вызывающий код не передал проп `active`.
+ */
+const DEFAULT_ICON_ACTIVE = false;
+
+/**
+ * DEFAULT_ICON_IS_BUTTON — задаёт ветку кнопки по умолчанию.
+ * Используется, когда вызывающий код не передал проп `isButton`.
+ */
+const DEFAULT_ICON_IS_BUTTON = false;
+
+/**
  * getIconStyles — возвращает CSS-правила для корня `StyledIcon`: габарит,
- * внутренний отступ, форму, рамку, статичную поверхность и канал состояний.
+ * внутренний отступ, форму, рамку с тенью, статичную поверхность, канал
+ * состояний, ветку `isButton` и фокус кнопки сброса.
  *
  * Как работает:
  * 1. Собирает квадрат окна через `getIconSize` и внутренний отступ через
- *    `getIconPadding` по `sizePreset`
+ *    `getIconPadding` по `size`
  * 2. Задаёт `border-radius` через `resolveIconBorderRadius` по `shape` и
- *    `sizePreset`. Без `shape` подставляет `DEFAULT_ICON_SHAPE`
+ *    `size`. Без `shape` подставляет `DEFAULT_ICON_SHAPE`
  * 3. Кладёт рамку с тенью через `getBorderStyles`. Без `showBorder` рамка
  *    выключена через `DEFAULT_ICON_SHOW_BORDER`
  * 4. Считает статичную заливку и цвет глифа через `resolveIconSurface`
- * 5. При `interactive` или `showHover` кладёт заливку через канал
+ * 5. При `isButton` красит окно как кнопку: нейтраль — `surface`, цветной —
+ *    тон. Наведение — вуаль поверх заливки или сдвиг к `shade`. На `:active` и
+ *    при `active` — заливка из `resolvePressedBackground` и `shadow.pressed`
+ *    через `getBorderStyles`. Без рамки снаружи пусто, вдавленность остаётся.
+ *    Наведение тень не меняет. `Icon` ставит проп только при `as="button"`.
+ *    Секция-`span` ветку не берёт
+ * 6. Иначе при `interactive` или `showHover` кладёт заливку через канал
  *    `--icon-state-background` с запасным значением на статику
- * 6. При `showHover` на `:not(:disabled):hover` и `:focus-visible` пишет
- *    значение канала через `resolveIconStateBackground`
- * 7. Для кнопки сброса `[data-slot='clear']` на `:focus-visible` снимает
- *    глобальный `outline` и ставит ту же заливку, что канал наведения
+ * 7. При `showHover` без `isButton` на `:not(:disabled):hover` и
+ *    `:focus-visible` пишет значение канала через `resolveIconStateBackground`
+ * 8. Для кнопки сброса `[data-slot='clear']` на `:focus-visible` снимает
+ *    глобальный `outline` и красит `background-color` декларацией тем же
+ *    цветом, что возвращает `resolveIconStateBackground`, не через канал
+ *    `--icon-state-background`
  *
  * @param props пропсы стилизации Icon и тема
  * @returns CSS-правила, каждое с новой строки
  */
-function getIconStyles(props: IconStyleProps & { theme: AppTheme }): string {
+function getIconStyles(props: IconStyledProps & { theme: AppTheme }): string {
   const theme = getTheme(props);
   const {
+    active = DEFAULT_ICON_ACTIVE,
     borderTone,
     iconFill,
     iconTone = DEFAULT_TONE,
     interactive = DEFAULT_ICON_INTERACTIVE,
+    isButton = DEFAULT_ICON_IS_BUTTON,
     shape = DEFAULT_ICON_SHAPE,
     showBorder = DEFAULT_ICON_SHOW_BORDER,
     showHover = DEFAULT_ICON_SHOW_HOVER,
     showShadow = DEFAULT_SHOW_SHADOW,
-    sizePreset = DEFAULT_SIZE_PRESET,
+    size = DEFAULT_SIZE_PRESET,
   } = props;
-  const size = getSpacingValue(getIconSize(sizePreset));
   const surface = resolveIconSurface(theme, iconTone, iconFill);
-  const usesStateChannel = interactive || showHover;
+  const usesStateChannel = !isButton && (interactive || showHover);
   const stateBackground = resolveIconStateBackground(theme, iconTone);
 
   const styles = [
-    `inline-size: ${size};`,
-    `block-size: ${size};`,
-    `padding: ${getSpacingValue(getIconPadding(sizePreset))};`,
-    `border-radius: ${resolveIconBorderRadius(shape, sizePreset)};`,
+    `inline-size: ${getSpacingValue(getIconSize(size))};`,
+    `block-size: ${getSpacingValue(getIconSize(size))};`,
+    `padding: ${getSpacingValue(getIconPadding(size))};`,
+    `border-radius: ${resolveIconBorderRadius(shape, size)};`,
     getBorderStyles(theme, showBorder, showShadow, borderTone),
   ];
 
-  if (usesStateChannel) {
+  if (isButton) {
+    const restBackground = surface.backgroundColor ?? theme.colors.surface;
+    const colorKey = getToneColorKey(iconTone);
+    const hoverBackground = colorKey
+      ? resolveColorMix(theme.colors[colorKey], theme.colors.shade)
+      : resolveVeilBackground(theme, restBackground);
+    const pressedBackground = resolvePressedBackground(theme, iconTone);
+    const pressedBorder = getBorderStyles(
+      theme,
+      showBorder,
+      showShadow,
+      borderTone,
+      true
+    );
+
+    styles.push(`background-color: ${restBackground};`);
+
+    if (!surface.color) {
+      styles.push(`color: ${theme.colors.default};`);
+    }
+
+    if (showHover) {
+      styles.push(
+        `&:not(:disabled):hover,`,
+        `&:focus-visible {`,
+        `background: ${hoverBackground};`,
+        '}'
+      );
+    }
+
+    styles.push(
+      `&:not(:disabled):active {`,
+      `background: ${pressedBackground};`,
+      pressedBorder,
+      '}'
+    );
+
+    if (active) {
+      styles.push(
+        `&:not(:disabled) {`,
+        `background: ${pressedBackground};`,
+        pressedBorder,
+        '}'
+      );
+    }
+  } else if (usesStateChannel) {
     styles.push(
       `background-color: var(--icon-state-background, ${surface.backgroundColor ?? 'transparent'});`
     );
@@ -418,7 +518,7 @@ function getIconStyles(props: IconStyleProps & { theme: AppTheme }): string {
     styles.push(`color: ${surface.color};`);
   }
 
-  if (showHover) {
+  if (!isButton && showHover) {
     styles.push(
       `&:not(:disabled):hover,`,
       `&:focus-visible {`,
@@ -432,7 +532,7 @@ function getIconStyles(props: IconStyleProps & { theme: AppTheme }): string {
   styles.push(
     `&[data-slot='clear']:focus-visible {`,
     'outline: none;',
-    `--icon-state-background: ${clearFocusBackground};`,
+    `background-color: ${clearFocusBackground};`,
     '}'
   );
 
@@ -441,7 +541,7 @@ function getIconStyles(props: IconStyleProps & { theme: AppTheme }): string {
 
 /**
  * StyledIcon — задаёт корневой узел компонента Icon.
- * Базируется на `<span>` и поддерживает все пропсы из `IconStyleProps`.
+ * Базируется на `<span>` и поддерживает все пропсы из `IconStyledProps`.
  * Полиморфный `as` задаёт корневой тег, например `<button>`.
  *
  * Встроенные стили:
@@ -452,7 +552,7 @@ function getIconStyles(props: IconStyleProps & { theme: AppTheme }): string {
  *
  * Генерация стилей:
  *  - `getIconStyles` — габарит, внутренний отступ, форма, рамка с тенью,
- *    поверхность и канал состояний
+ *    поверхность, канал состояний, ветка `isButton` и фокус кнопки сброса
  *  - `getLayoutStyles` — отступы, позиционирование, размеры
  *
  * Единственный узел проекта, создающий условия рендера svg: центрирующий бокс.
@@ -460,7 +560,7 @@ function getIconStyles(props: IconStyleProps & { theme: AppTheme }): string {
  */
 export const StyledIcon = styled.span.withConfig({
   shouldForwardProp: (prop) => !ICON_PROP_NAMES.has(prop),
-})<IconStyleProps>`
+})<IconStyledProps>`
   display: grid;
   flex-shrink: 0;
   place-items: center;

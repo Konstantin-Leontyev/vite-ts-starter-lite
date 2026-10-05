@@ -15,8 +15,7 @@ import { type ChangeEvent } from 'react';
 
 import { Checkbox } from '@ui/checkbox';
 import { SHAPE_PRESET_KEYS, type ShapePreset } from '@ui/presets';
-import { TAG_SIZE_PRESET_KEYS, getTagTextSize, type TagSizePreset } from '@ui/tag';
-import { type TextSizePreset, type TextTone } from '@ui/text';
+import { TAG_SIZE_PRESET_KEYS, type TagSizePreset } from '@ui/tag';
 import { TONE_PRESET_KEYS, type TonePreset } from '@ui/tones';
 
 import { BorderGroup } from '../border-group';
@@ -28,8 +27,8 @@ import { ToneListbox } from '../tone-listbox';
 
 /**
  * TagWidgetState — представляет состояние настроек компонента Tag в витрине дизайн-системы.
- * Ключи совпадают с именами пропов компонента Tag, кроме витринных ключей:
- * `showText` управляет передачей содержимого в превью, `text` хранит содержимое `children`.
+ * Ключи совпадают с именами пропов компонента Tag, кроме витринного ключа:
+ * `text` хранит содержимое `children`.
  * Используется для синхронизации значений между панелью управления и демонстрационной меткой.
  *
  * @property borderTone — тон рамки при включённом `showBorder`
@@ -38,12 +37,8 @@ import { ToneListbox } from '../tone-listbox';
  * @property showBorder — включает рамку
  * @property showDot — включает точку-индикатор
  * @property showShadow — включает тень при включённой рамке
- * @property showText — витринный ключ показа текста. Выключенный — метка без текста
- * @property sizePreset — размер метки
+ * @property size — размер метки
  * @property text — содержимое метки
- * @property textItalic — включает курсив текста метки
- * @property textSize — размер текста метки
- * @property textTone — тон текста метки
  * @property tinted — включает режим мягкой заливки
  * @property tone — тон заливки
  */
@@ -54,12 +49,8 @@ export type TagWidgetState = {
   showBorder: boolean;
   showDot: boolean;
   showShadow: boolean;
-  showText: boolean;
-  sizePreset: TagSizePreset;
+  size: TagSizePreset;
   text: string;
-  textItalic: boolean;
-  textSize: TextSizePreset;
-  textTone: TextTone;
   tinted: boolean;
   tone: TonePreset;
 };
@@ -87,11 +78,8 @@ export function TagSettings({ onChange, state }: TagSettingsProps) {
       <SizeListbox
         label="Size:"
         sizes={TAG_SIZE_PRESET_KEYS}
-        value={state.sizePreset}
-        onChange={(size) => {
-          onChange('sizePreset', size);
-          onChange('textSize', getTagTextSize(size));
-        }}
+        value={state.size}
+        onChange={(size) => onChange('size', size)}
       />
 
       <ShapeListbox
@@ -135,6 +123,16 @@ export function TagSettings({ onChange, state }: TagSettingsProps) {
         />
       )}
 
+      <TextGroup
+        contents={[
+          {
+            value: state.text,
+            onChange: (value) => onChange('text', value),
+          },
+        ]}
+        labelPrefix="Text"
+      />
+
       <Checkbox
         checked={state.tinted}
         onChange={(event: ChangeEvent<HTMLInputElement>) =>
@@ -143,31 +141,6 @@ export function TagSettings({ onChange, state }: TagSettingsProps) {
       >
         Show tinted
       </Checkbox>
-
-      <TextGroup
-        contents={[
-          {
-            label: 'Text:',
-            value: state.text,
-            onChange: (value) => onChange('text', value),
-          },
-        ]}
-        italic={state.textItalic}
-        show={{
-          checked: state.showText,
-          onChange: (checked) => onChange('showText', checked),
-        }}
-        size={state.textSize}
-        tones={[
-          {
-            label: 'Text tone:',
-            value: state.textTone,
-            onChange: (tone) => onChange('textTone', tone),
-          },
-        ]}
-        onItalicChange={(value) => onChange('textItalic', value)}
-        onSizeChange={(size) => onChange('textSize', size)}
-      />
     </StyledSettingsForm>
   );
 }

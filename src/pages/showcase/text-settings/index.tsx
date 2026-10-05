@@ -11,7 +11,11 @@
  *  - `src/pages/showcase/index.tsx` — подключает панель и синхронизирует состояние с превью виджета текста
  */
 
-import { type TextAlignPreset, type TextSizePreset, type TextTone } from '@ui/text';
+import {
+  type TextAlignPreset,
+  type TextSizePreset,
+  type TextTonePreset,
+} from '@ui/text';
 
 import { StyledSettingsForm } from '../showcase.styles';
 import { TextGroup } from '../text-group';
@@ -25,7 +29,7 @@ import { TextGroup } from '../text-group';
  * @property children — содержимое текста
  * @property ellipsis — включает однострочное обрезание с многоточием
  * @property italic — включает курсивное начертание
- * @property sizePreset — типографический пресет
+ * @property size — типографический пресет
  * @property tone — тон текста
  */
 export type TextWidgetState = {
@@ -33,8 +37,8 @@ export type TextWidgetState = {
   children: string;
   ellipsis: boolean;
   italic: boolean;
-  sizePreset: TextSizePreset;
-  tone: TextTone;
+  size: TextSizePreset;
+  tone: TextTonePreset;
 };
 
 /**
@@ -61,7 +65,6 @@ export function TextSettings({ onChange, state }: TextSettingsProps) {
         align={state.align}
         contents={[
           {
-            label: 'Sample:',
             value: state.children,
             onChange: (value) => onChange('children', value),
           },
@@ -71,8 +74,8 @@ export function TextSettings({ onChange, state }: TextSettingsProps) {
           onChange: (checked) => onChange('ellipsis', checked),
         }}
         italic={state.italic}
-        labelPrefix=""
-        size={state.sizePreset}
+        labelPrefix="Sample"
+        size={state.size}
         tones={[
           {
             value: state.tone,
@@ -81,7 +84,7 @@ export function TextSettings({ onChange, state }: TextSettingsProps) {
         ]}
         onAlignChange={(align) => onChange('align', align)}
         onItalicChange={(value) => onChange('italic', value)}
-        onSizeChange={(size) => onChange('sizePreset', size)}
+        onSizeChange={(size) => onChange('size', size)}
       />
     </StyledSettingsForm>
   );

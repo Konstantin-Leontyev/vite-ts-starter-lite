@@ -15,9 +15,9 @@
  *
  * Потребители:
  *  - панели настроек витрины — выбирают размер:
- *     - `src/pages/showcase/card-settings/index.tsx`
  *     - `src/pages/showcase/checkbox-settings/index.tsx`
  *     - `src/pages/showcase/control-group/index.tsx`
+ *     - `src/pages/showcase/icon-row-group/index.tsx`
  *     - `src/pages/showcase/icon-settings/index.tsx`
  *     - `src/pages/showcase/modal-settings/index.tsx`
  *     - `src/pages/showcase/progress-bar-settings/index.tsx`
@@ -28,30 +28,17 @@
  *     - `src/pages/showcase/table-settings/index.tsx`
  *     - `src/pages/showcase/tag-settings/index.tsx`
  *     - `src/pages/showcase/text-group/index.tsx`
- *     - `src/pages/showcase/title-group/index.tsx`
  *     - `src/pages/showcase/toast-settings/index.tsx`
+ *     - `src/pages/showcase/toolbar-settings/index.tsx`
  */
 
-import { Listbox, type ListboxOption } from '@ui/listbox';
+import { Listbox } from '@ui/listbox';
 import { DEFAULT_SIZE_PRESET, type SizePreset } from '@ui/presets';
 
-/**
- * getSizeListboxOptions — преобразует перечень размеров в опции Listbox.
- *
- * @param sizes исходный перечень размеров
- * @returns опции для Listbox
- */
-function getSizeListboxOptions<Size extends string>(
-  sizes: readonly Size[]
-): ListboxOption[] {
-  return sizes.map((size) => ({
-    label: size,
-    value: size,
-  }));
-}
+import { getListboxOptions } from '../showcase-listbox-options';
 
 /**
- * DEFAULT_SIZE_LISTBOX_VALUE — задаёт размер по умолчанию для отображения в листбоксе.
+ * DEFAULT_SIZE_LISTBOX_VALUE — задаёт размер для отображения в листбоксе по умолчанию.
  * Проп размера Text без значения подставляет `normal` — то же значение здесь.
  * Панели передают состояние как есть, не дублируя это умолчание запасными значениями.
  * Используется, когда вызывающий код не передал проп `value`.
@@ -65,7 +52,7 @@ const DEFAULT_SIZE_LISTBOX_VALUE = DEFAULT_SIZE_PRESET;
  * @property onChange — обработчик изменения выбранного размера
  * @property sizes — перечень допустимых размеров из настраиваемого компонента,
  *   например `SIZE_PRESET_KEYS`, `TAG_SIZE_PRESET_KEYS` или `TEXT_SIZE_PRESET_KEYS`
- * @property value — текущий выбранный размер, по умолчанию `normal`
+ * @property value — текущий выбранный размер
  */
 type SizeListboxProps<Size extends string> = {
   label: string;
@@ -81,14 +68,14 @@ type SizeListboxProps<Size extends string> = {
  * <SizeListbox
  *   label="Size:"
  *   sizes={SIZE_PRESET_KEYS}
- *   value={sizePreset}
- *   onChange={setSizePreset}
+ *   value={size}
+ *   onChange={setSize}
  * />
  * <SizeListbox
  *   label="Text size:"
  *   sizes={TEXT_SIZE_PRESET_KEYS}
- *   value={sizePreset}
- *   onChange={setSizePreset}
+ *   value={size}
+ *   onChange={setSize}
  * />
  */
 export function SizeListbox<Size extends string = SizePreset>({
@@ -100,7 +87,7 @@ export function SizeListbox<Size extends string = SizePreset>({
   return (
     <Listbox
       label={label}
-      options={getSizeListboxOptions(sizes)}
+      options={getListboxOptions(sizes)}
       value={value}
       onChange={(nextSize) => onChange(nextSize as Size)}
     />

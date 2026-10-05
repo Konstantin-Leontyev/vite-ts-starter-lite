@@ -17,7 +17,6 @@ import { type ChangeEvent } from 'react';
 
 import { Checkbox } from '@ui/checkbox';
 import { type IconPosition } from '@ui/icon';
-import { Input } from '@ui/input';
 import {
   SHAPE_PRESET_KEYS,
   SIZE_PRESET_KEYS,
@@ -25,10 +24,18 @@ import {
   type SizePreset,
 } from '@ui/presets';
 import {
+  DEFAULT_RANGE_INPUT_FROM_PLACEHOLDER,
+  DEFAULT_RANGE_INPUT_PLACEHOLDER,
+  DEFAULT_RANGE_INPUT_TO_PLACEHOLDER,
+  DEFAULT_RANGE_INPUT_VALIDATION_MESSAGES,
   type RangeValue,
   type ResolvedRangeInputValidationMessages,
 } from '@ui/range-input';
-import { type TextAlignPreset, type TextSizePreset, type TextTone } from '@ui/text';
+import {
+  type TextAlignPreset,
+  type TextSizePreset,
+  type TextTonePreset,
+} from '@ui/text';
 import { TONE_PRESET_KEYS, type TonePreset } from '@ui/tones';
 
 import { ControlGroup } from '../control-group';
@@ -37,17 +44,19 @@ import { IconGroup } from '../icon-group';
 import { ShapeListbox } from '../shape-listbox';
 import { StyledSettingsForm } from '../showcase.styles';
 import { SizeListbox } from '../size-listbox';
-import { TitleGroup } from '../title-group';
+import { TextGroup } from '../text-group';
 import { ToneListbox } from '../tone-listbox';
 
 /**
  * RangeInputWidgetState — представляет состояние настроек компонента RangeInput в витрине дизайн-системы.
  * Ключи совпадают с именами пропов компонента RangeInput, кроме витринных ключей: `withClear`
  * управляет передачей `onClear` в превью.
+ * Пустая строка заголовка означает вызов без пропа. Отметка `Set*`
+ * живёт внутри TextGroup.
  * Используется для синхронизации значений между панелью управления и демонстрационным RangeInput.
  *
- * @property buttonShape — форма кнопки применения
- * @property buttonSizePreset — размер кнопки применения
+ * @property buttonShape — форма кнопки применения. Стартует с формы контрола
+ * @property buttonSize — размер кнопки применения. Стартует с размера контрола
  * @property buttonText — текст кнопки применения
  * @property buttonTextTone — тон лейбла кнопки применения
  * @property buttonTone — семантический тон кнопки применения
@@ -58,17 +67,17 @@ import { ToneListbox } from '../tone-listbox';
  * @property iconFill — тон глифа шеврона и кнопки сброса
  * @property iconPosition — позиция шеврона и кнопки сброса относительно значения
  * @property iconTone — тон секции шеврона и кнопки сброса
- * @property inputShape — форма полей `from` и `to`
- * @property inputSizePreset — размер полей `from` и `to`
+ * @property inputShape — форма полей `from` и `to`. Стартует с формы контрола
+ * @property inputSize — размер полей `from` и `to`. Стартует с размера контрола
  * @property label — подпись над триггером
  * @property placeholder — плейсхолдер неактивного триггера
- * @property reserveErrorSpace — включает резерв высоты под строку ошибки. Опционален:
- *   дефолт компонента не хранится в стейте
+ * @property reserveErrorSpace — включает резерв высоты под строку ошибки
  * @property shape — форма поверхности
- * @property sizePreset — размер компонента
+ * @property size — размер компонента
  * @property title — заголовок панели
  * @property titleAlign — выравнивание заголовка панели
- * @property titleSizePreset — размер заголовка панели
+ * @property titleItalic — включает курсив заголовка панели
+ * @property titleSize — размер заголовка панели
  * @property titleTone — тон заголовка панели
  * @property toPlaceholder — плейсхолдер поля `to`
  * @property validationMessages — тексты встроенной валидации
@@ -77,9 +86,9 @@ import { ToneListbox } from '../tone-listbox';
  */
 export type RangeInputWidgetState = {
   buttonShape: ShapePreset;
-  buttonSizePreset: SizePreset;
+  buttonSize: SizePreset;
   buttonText: string;
-  buttonTextTone: TonePreset;
+  buttonTextTone: TextTonePreset;
   buttonTone: TonePreset;
   disabled: boolean;
   errorPlaceholder?: string;
@@ -88,16 +97,17 @@ export type RangeInputWidgetState = {
   iconPosition: IconPosition;
   iconTone: TonePreset;
   inputShape: ShapePreset;
-  inputSizePreset: SizePreset;
+  inputSize: SizePreset;
   label: string;
   placeholder: string;
-  reserveErrorSpace?: boolean;
+  reserveErrorSpace: boolean;
   shape: ShapePreset;
-  sizePreset: SizePreset;
+  size: SizePreset;
   title: string;
   titleAlign: TextAlignPreset;
-  titleSizePreset: TextSizePreset;
-  titleTone: TextTone;
+  titleItalic: boolean;
+  titleSize: TextSizePreset;
+  titleTone: TextTonePreset;
   toPlaceholder: string;
   validationMessages: ResolvedRangeInputValidationMessages;
   value: RangeValue;
@@ -125,19 +135,55 @@ type RangeInputSettingsProps = {
  * <RangeInputSettings state={rangeInput} onChange={updateRangeInput} />
  */
 export function RangeInputSettings({ onChange, state }: RangeInputSettingsProps) {
+  /**
+   * handleValidationMessageChange — записывает один текст валидации в состояние витрины.
+   *
+   * @param key ключ текста валидации
+   * @param value введённый текст
+   */
+  function handleValidationMessageChange(
+    key: keyof ResolvedRangeInputValidationMessages,
+    value: string
+  ): void {
+    onChange('validationMessages', {
+      ...state.validationMessages,
+      [key]: value,
+    });
+  }
+
   return (
     <StyledSettingsForm onSubmit={(event) => event.preventDefault()}>
       <ControlGroup
         label={state.label}
         shape={state.shape}
-        sizePreset={state.sizePreset}
+        size={state.size}
         onLabelChange={(label) => onChange('label', label)}
-        onShapeChange={(shape) => onChange('shape', shape)}
-        onSizeChange={(size) => onChange('sizePreset', size)}
+        onShapeChange={(shape) => {
+          onChange('shape', shape);
+          onChange('inputShape', shape);
+          onChange('buttonShape', shape);
+        }}
+        onSizeChange={(size) => {
+          onChange('size', size);
+          onChange('inputSize', size);
+          onChange('buttonSize', size);
+        }}
+      />
+
+      <TextGroup
+        contents={[
+          {
+            boxedString: DEFAULT_RANGE_INPUT_PLACEHOLDER,
+            value: state.placeholder,
+            onChange: (value) => onChange('placeholder', value),
+          },
+        ]}
+        labelPrefix="Placeholder"
       />
 
       <IconGroup
         fill={state.iconFill}
+        labelPrefix="Icon"
         position={state.iconPosition}
         tone={state.iconTone}
         onFillChange={(tone) => onChange('iconFill', tone)}
@@ -154,31 +200,33 @@ export function RangeInputSettings({ onChange, state }: RangeInputSettingsProps)
         Show clear
       </Checkbox>
 
-      <Input
-        label="Placeholder:"
-        value={state.placeholder}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('placeholder', event.target.value)
-        }
-      />
-
-      <TitleGroup
+      <TextGroup
         align={state.titleAlign}
+        contents={[
+          {
+            value: state.title,
+            onChange: (value) => onChange('title', value),
+          },
+        ]}
+        italic={state.titleItalic}
         labelPrefix="Title"
-        size={state.titleSizePreset}
-        title={state.title}
-        tone={state.titleTone}
+        size={state.titleSize}
+        tones={[
+          {
+            value: state.titleTone,
+            onChange: (tone) => onChange('titleTone', tone),
+          },
+        ]}
         onAlignChange={(align) => onChange('titleAlign', align)}
-        onSizeChange={(size) => onChange('titleSizePreset', size)}
-        onTitleChange={(title) => onChange('title', title)}
-        onToneChange={(tone) => onChange('titleTone', tone)}
+        onItalicChange={(value) => onChange('titleItalic', value)}
+        onSizeChange={(size) => onChange('titleSize', size)}
       />
 
       <SizeListbox
         label="Input size:"
         sizes={SIZE_PRESET_KEYS}
-        value={state.inputSizePreset}
-        onChange={(size) => onChange('inputSizePreset', size)}
+        value={state.inputSize}
+        onChange={(size) => onChange('inputSize', size)}
       />
 
       <ShapeListbox
@@ -188,27 +236,75 @@ export function RangeInputSettings({ onChange, state }: RangeInputSettingsProps)
         onChange={(shape) => onChange('inputShape', shape)}
       />
 
-      <Input
-        label="From placeholder:"
-        value={state.fromPlaceholder}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('fromPlaceholder', event.target.value)
+      <TextGroup
+        contents={[
+          {
+            boxedString: DEFAULT_RANGE_INPUT_FROM_PLACEHOLDER,
+            value: state.fromPlaceholder,
+            onChange: (value) => onChange('fromPlaceholder', value),
+          },
+        ]}
+        labelPrefix="From placeholder"
+      />
+
+      <TextGroup
+        contents={[
+          {
+            boxedString: DEFAULT_RANGE_INPUT_TO_PLACEHOLDER,
+            value: state.toPlaceholder,
+            onChange: (value) => onChange('toPlaceholder', value),
+          },
+        ]}
+        labelPrefix="To placeholder"
+      />
+
+      <FieldErrorGroup
+        errorPlaceholder={state.errorPlaceholder}
+        reserveErrorSpace={state.reserveErrorSpace}
+        onErrorPlaceholderChange={(value) => onChange('errorPlaceholder', value)}
+        onReserveErrorSpaceChange={(reserve) =>
+          onChange('reserveErrorSpace', reserve === true)
         }
       />
 
-      <Input
-        label="To placeholder:"
-        value={state.toPlaceholder}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('toPlaceholder', event.target.value)
-        }
+      <TextGroup
+        contents={[
+          {
+            boxedString: DEFAULT_RANGE_INPUT_VALIDATION_MESSAGES.emptyBounds,
+            value: state.validationMessages.emptyBounds,
+            onChange: (value) => handleValidationMessageChange('emptyBounds', value),
+          },
+        ]}
+        labelPrefix="Validation empty bounds"
+      />
+
+      <TextGroup
+        contents={[
+          {
+            boxedString: DEFAULT_RANGE_INPUT_VALIDATION_MESSAGES.invalidFrom,
+            value: state.validationMessages.invalidFrom,
+            onChange: (value) => handleValidationMessageChange('invalidFrom', value),
+          },
+        ]}
+        labelPrefix="From validation error"
+      />
+
+      <TextGroup
+        contents={[
+          {
+            boxedString: DEFAULT_RANGE_INPUT_VALIDATION_MESSAGES.invalidTo,
+            value: state.validationMessages.invalidTo,
+            onChange: (value) => handleValidationMessageChange('invalidTo', value),
+          },
+        ]}
+        labelPrefix="To validation error"
       />
 
       <SizeListbox
         label="Button size:"
         sizes={SIZE_PRESET_KEYS}
-        value={state.buttonSizePreset}
-        onChange={(size) => onChange('buttonSizePreset', size)}
+        value={state.buttonSize}
+        onChange={(size) => onChange('buttonSize', size)}
       />
 
       <ShapeListbox
@@ -225,60 +321,20 @@ export function RangeInputSettings({ onChange, state }: RangeInputSettingsProps)
         onChange={(tone) => onChange('buttonTone', tone)}
       />
 
-      <Input
-        label="Button text:"
-        value={state.buttonText}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('buttonText', event.target.value)
-        }
-      />
-
-      <ToneListbox
-        excludeTone={state.buttonTone}
-        label="Button text tone:"
-        tones={TONE_PRESET_KEYS}
-        value={state.buttonTextTone}
-        onChange={(tone) => onChange('buttonTextTone', tone)}
-      />
-
-      <Input
-        label="Validation empty bounds:"
-        value={state.validationMessages.emptyBounds}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('validationMessages', {
-            ...state.validationMessages,
-            emptyBounds: event.target.value,
-          })
-        }
-      />
-
-      <Input
-        label="From validation error:"
-        value={state.validationMessages.invalidFrom}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('validationMessages', {
-            ...state.validationMessages,
-            invalidFrom: event.target.value,
-          })
-        }
-      />
-
-      <Input
-        label="To validation error:"
-        value={state.validationMessages.invalidTo}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange('validationMessages', {
-            ...state.validationMessages,
-            invalidTo: event.target.value,
-          })
-        }
-      />
-
-      <FieldErrorGroup
-        errorPlaceholder={state.errorPlaceholder}
-        reserveErrorSpace={state.reserveErrorSpace}
-        onErrorPlaceholderChange={(value) => onChange('errorPlaceholder', value)}
-        onReserveErrorSpaceChange={(reserve) => onChange('reserveErrorSpace', reserve)}
+      <TextGroup
+        contents={[
+          {
+            value: state.buttonText,
+            onChange: (value) => onChange('buttonText', value),
+          },
+        ]}
+        labelPrefix="Button text"
+        tones={[
+          {
+            value: state.buttonTextTone,
+            onChange: (tone) => onChange('buttonTextTone', tone),
+          },
+        ]}
       />
 
       <Checkbox

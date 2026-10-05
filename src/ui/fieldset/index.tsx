@@ -5,61 +5,50 @@
  * Поддерживает:
  *  - layout-пропсы: отступы, позиционирование, размеры
  *  - тон рамки через проп `borderTone`
- *  - заголовок группы через проп `label` в `<legend>`
- *  - тон заголовка через проп `legendTone`
- *  - размер заголовка через проп `legendSizePreset`
- *  - курсив заголовка через проп `legendItalic`
+ *  - заголовок группы через проп `legend` в `<legend>`. Без `legend` рамка без разрыва
  *  - содержимое группы через `children`
  *
  * Основные задачи:
  * 1. Экспортировать компонент Fieldset
  * 2. Типизировать пропсы через `FieldsetProps`
- * 3. Реэкспортировать перечень тонов рамки `FIELDSET_BORDER_TONE_KEYS`
- *    и тип `FieldsetBorderTone`
+ * 3. Реэкспортировать перечень тонов рамки `FIELDSET_BORDER_TONE_PRESET_KEYS`
+ *    и тип `FieldsetBorderTonePreset`
  *
  * Потребители:
  *  - страницы и виджеты приложения — группируют поля формы
  *  - `src/pages/showcase` — демонстрирует состояния в витрине
  */
 
-import { type ComponentPropsWithRef, type ReactNode } from 'react';
+import { type ComponentPropsWithRef } from 'react';
 
-import { Text, type TextSizePreset, type TextTone } from '@ui/text';
+import { Text, type TextSizePreset, type TextTonePreset } from '@ui/text';
 
 import {
-  FIELDSET_BORDER_TONE_KEYS,
+  FIELDSET_BORDER_TONE_PRESET_KEYS,
   StyledFieldset,
-  type FieldsetBorderTone,
+  type FieldsetBorderTonePreset,
   type FieldsetStyleProps,
 } from './fieldset.styles';
 
 /**
- * DEFAULT_FIELDSET_LEGEND_SIZE_PRESET — задаёт размер заголовка по умолчанию.
+ * FIELDSET_LEGEND_SIZE_PRESET — задаёт размер заголовка.
  * Заголовок группы — служебный текст, поэтому мельче основного.
  */
-const DEFAULT_FIELDSET_LEGEND_SIZE_PRESET: TextSizePreset = 'thin';
+const FIELDSET_LEGEND_SIZE_PRESET: TextSizePreset = 'thin';
 
 /**
- * DEFAULT_FIELDSET_LEGEND_TONE — задаёт тон заголовка по умолчанию.
+ * FIELDSET_LEGEND_TONE — задаёт тон заголовка.
  * Заголовок группы — вторичный текст, поэтому `muted`.
  */
-const DEFAULT_FIELDSET_LEGEND_TONE: TextTone = 'muted';
+const FIELDSET_LEGEND_TONE: TextTonePreset = 'muted';
 
 /**
  * FieldsetProps — представляет пропсы компонента Fieldset.
  *
- * @property children — содержимое группы
- * @property label — заголовок в `<legend>`
- * @property legendItalic — включает курсив заголовка
- * @property legendSizePreset — размер заголовка
- * @property legendTone — тон заголовка
+ * @property legend — заголовок в `<legend>`. Пустая или пробельная строка не рендерит `<legend>`
  */
 type FieldsetProps = {
-  children?: ReactNode;
-  label: string;
-  legendItalic?: boolean;
-  legendSizePreset?: TextSizePreset;
-  legendTone?: TextTone;
+  legend?: string;
 } & FieldsetStyleProps &
   Omit<
     ComponentPropsWithRef<'fieldset'>,
@@ -67,35 +56,31 @@ type FieldsetProps = {
   >;
 
 /**
- * Fieldset — отображает группу полей с заголовком в `<legend>`.
+ * Fieldset — отображает группу полей с опциональным заголовком в `<legend>`.
  *
  * @example
- * <Fieldset label="Notifications">
+ * <Fieldset legend="Notifications">
  *   <Checkbox checked={email}>Email</Checkbox>
  * </Fieldset>
  */
-function Fieldset({
-  children,
-  label,
-  legendItalic,
-  legendSizePreset = DEFAULT_FIELDSET_LEGEND_SIZE_PRESET,
-  legendTone = DEFAULT_FIELDSET_LEGEND_TONE,
-  ...rest
-}: FieldsetProps) {
+function Fieldset({ children, legend, ...rest }: FieldsetProps) {
+  const hasLegend = Boolean(legend?.trim());
+
   return (
     <StyledFieldset {...rest}>
-      <Text
-        as="legend"
-        italic={legendItalic}
-        paddingInline={4}
-        sizePreset={legendSizePreset}
-        tone={legendTone}
-      >
-        {label}
-      </Text>
+      {hasLegend && (
+        <Text
+          as="legend"
+          paddingInline={4}
+          size={FIELDSET_LEGEND_SIZE_PRESET}
+          tone={FIELDSET_LEGEND_TONE}
+        >
+          {legend}
+        </Text>
+      )}
       {children}
     </StyledFieldset>
   );
 }
 
-export { FIELDSET_BORDER_TONE_KEYS, Fieldset, type FieldsetBorderTone };
+export { FIELDSET_BORDER_TONE_PRESET_KEYS, Fieldset, type FieldsetBorderTonePreset };

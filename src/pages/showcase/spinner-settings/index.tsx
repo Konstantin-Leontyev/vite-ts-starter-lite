@@ -15,8 +15,6 @@ import { type ChangeEvent } from 'react';
 
 import { Checkbox } from '@ui/checkbox';
 import { SIZE_PRESET_KEYS, type SizePreset } from '@ui/presets';
-import { getSpinnerTextSize } from '@ui/spinner';
-import { type TextSizePreset, type TextTone } from '@ui/text';
 import { TONE_PRESET_KEYS, type TonePreset } from '@ui/tones';
 
 import { StyledSettingsForm } from '../showcase.styles';
@@ -26,27 +24,19 @@ import { ToneListbox } from '../tone-listbox';
 
 /**
  * SpinnerWidgetState — представляет состояние настроек компонента Spinner в витрине дизайн-системы.
- * Ключи совпадают с именами пропов компонента Spinner, кроме витринных ключей:
- * `showText` управляет передачей подписи в превью, `text` хранит содержимое `children`.
+ * Ключи совпадают с именами пропов компонента Spinner, кроме витринного ключа:
+ * `text` хранит содержимое `children`.
  * Используется для синхронизации значений между панелью управления и демонстрационным индикатором.
  *
  * @property reserveTextSpace — включает резерв высоты под подпись
- * @property showText — витринный ключ показа подписи. Выключенный — индикатор без подписи
- * @property sizePreset — размер спиннера
+ * @property size — размер спиннера
  * @property text — подпись под индикатором
- * @property textItalic — включает курсив подписи
- * @property textSize — размер подписи
- * @property textTone — тон подписи
  * @property tone — семантический тон
  */
 export type SpinnerWidgetState = {
   reserveTextSpace: boolean;
-  showText: boolean;
-  sizePreset: SizePreset;
+  size: SizePreset;
   text: string;
-  textItalic: boolean;
-  textSize: TextSizePreset;
-  textTone: TextTone;
   tone: TonePreset;
 };
 
@@ -76,11 +66,8 @@ export function SpinnerSettings({ onChange, state }: SpinnerSettingsProps) {
       <SizeListbox
         label="Size:"
         sizes={SIZE_PRESET_KEYS}
-        value={state.sizePreset}
-        onChange={(size) => {
-          onChange('sizePreset', size);
-          onChange('textSize', getSpinnerTextSize(size));
-        }}
+        value={state.size}
+        onChange={(size) => onChange('size', size)}
       />
 
       <ToneListbox
@@ -93,26 +80,11 @@ export function SpinnerSettings({ onChange, state }: SpinnerSettingsProps) {
       <TextGroup
         contents={[
           {
-            label: 'Text:',
             value: state.text,
             onChange: (value) => onChange('text', value),
           },
         ]}
-        italic={state.textItalic}
-        show={{
-          checked: state.showText,
-          onChange: (checked) => onChange('showText', checked),
-        }}
-        size={state.textSize}
-        tones={[
-          {
-            label: 'Text tone:',
-            value: state.textTone,
-            onChange: (tone) => onChange('textTone', tone),
-          },
-        ]}
-        onItalicChange={(value) => onChange('textItalic', value)}
-        onSizeChange={(size) => onChange('textSize', size)}
+        labelPrefix="Text"
       />
 
       <Checkbox
