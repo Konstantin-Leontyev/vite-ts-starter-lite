@@ -79,7 +79,6 @@ import {
 } from '@ui/table';
 import { Tag, type TagShowDotProps } from '@ui/tag';
 import { Text, type TextNodeProps } from '@ui/text';
-import { Toast } from '@ui/toast';
 import { DEFAULT_TONE } from '@ui/tones';
 import { Toolbar } from '@ui/toolbar';
 
@@ -184,6 +183,20 @@ const DEMO_MODAL_ARIA_LABEL = 'Demo modal';
  * Используется в теле превью Modal.
  */
 const DEMO_MODAL_BODY_TEXT = 'Place your content here';
+
+/**
+ * DEMO_MODAL_CARD_SUBTITLE — задаёт подзаголовок карточки Modal в витрине.
+ * Длина как у подзаголовка Browser AI, чтобы шапки были одной высоты.
+ */
+const DEMO_MODAL_CARD_SUBTITLE =
+  'Places a dialog over the page and holds focus there until you dismiss it.';
+
+/**
+ * DEMO_TOAST_CARD_SUBTITLE — задаёт подзаголовок карточки Toast в витрине.
+ * Длина как у подзаголовка Browser AI, чтобы шапки были одной высоты.
+ */
+const DEMO_TOAST_CARD_SUBTITLE =
+  'Shows a brief notice over the page, then leaves on its own after a while.';
 
 /**
  * PROGRESS_WIDGET_TITLE_ID — задаёт id заголовка виджета ProgressBar в витрине.
@@ -713,13 +726,6 @@ const DEFAULT_TOOLBAR_STATE: ToolbarWidgetState = {
     {
       active: false,
       disabled: false,
-      iconKey: 'search',
-      iconPadding: getIconPadding(DEFAULT_SIZE_PRESET),
-      title: '',
-    },
-    {
-      active: false,
-      disabled: false,
       iconKey: 'copy',
       iconPadding: getIconPadding(DEFAULT_SIZE_PRESET),
       title: '',
@@ -1145,6 +1151,15 @@ export function ShowcasePage() {
     titleId?: string
   ): ReactNode {
     const open = activeSettings === widgetKey;
+    const widgetCardSubtitleProps: TextNodeProps<'subtitle'> = resolveTextNodeProps({
+      prefix: 'subtitle',
+      text:
+        widgetKey === 'modal'
+          ? DEMO_MODAL_CARD_SUBTITLE
+          : widgetKey === 'toast'
+            ? DEMO_TOAST_CARD_SUBTITLE
+            : '',
+    });
 
     const card = (
       <Card
@@ -1166,6 +1181,7 @@ export function ShowcasePage() {
         paddingBlockEnd={widgetKey === 'table' ? 0 : undefined}
         title={SETTINGS_TITLES[widgetKey]}
         titleId={titleId}
+        {...widgetCardSubtitleProps}
       >
         {children}
       </Card>
@@ -1444,42 +1460,6 @@ export function ShowcasePage() {
               {renderWidgetCard('table', <TableDemo settings={table} />, true)}
 
               {renderWidgetCard(
-                'modal',
-                <>
-                  <Button
-                    alignSelf="center"
-                    tone="primary"
-                    onClick={() => setIsModalOpen(true)}
-                  >
-                    Open modal
-                  </Button>
-                  <Modal
-                    background={modal.background}
-                    inlineSize={MODAL_INLINE_SIZE[modal.size]}
-                    open={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
-                    {...modalBorderProps}
-                    {...modalAccessibleName}
-                    {...modalSubtitleProps}
-                  >
-                    {DEMO_MODAL_BODY_TEXT}
-                  </Modal>
-                </>
-              )}
-
-              {renderWidgetCard(
-                'card',
-                <Card
-                  background={card.background}
-                  headerActions={card.headerActions.map(resolveIconButtonRowAction)}
-                  {...cardActionBorderProps}
-                  {...cardBorderProps}
-                  {...cardTitleProps}
-                  {...cardSubtitleProps}
-                />
-              )}
-
-              {renderWidgetCard(
                 'text',
                 <Text
                   align={text.align}
@@ -1493,6 +1473,35 @@ export function ShowcasePage() {
                 >
                   {text.children}
                 </Text>
+              )}
+
+              {renderWidgetCard(
+                'icon',
+                <Icon
+                  iconFill={icon.iconFill}
+                  iconTone={icon.iconTone}
+                  padding={icon.padding}
+                  placeSelf="center"
+                  shape={icon.shape}
+                  showHover={icon.showHover}
+                  size={icon.size}
+                  {...iconBorderProps}
+                  {...iconRoleProps}
+                >
+                  {getIcon(icon.iconKey)}
+                </Icon>
+              )}
+
+              {renderWidgetCard(
+                'card',
+                <Card
+                  background={card.background}
+                  headerActions={card.headerActions.map(resolveIconButtonRowAction)}
+                  {...cardActionBorderProps}
+                  {...cardBorderProps}
+                  {...cardTitleProps}
+                  {...cardSubtitleProps}
+                />
               )}
 
               {renderWidgetCard(
@@ -1782,23 +1791,6 @@ export function ShowcasePage() {
               )}
 
               {renderWidgetCard(
-                'icon',
-                <Icon
-                  iconFill={icon.iconFill}
-                  iconTone={icon.iconTone}
-                  padding={icon.padding}
-                  placeSelf="center"
-                  shape={icon.shape}
-                  showHover={icon.showHover}
-                  size={icon.size}
-                  {...iconBorderProps}
-                  {...iconRoleProps}
-                >
-                  {getIcon(icon.iconKey)}
-                </Icon>
-              )}
-
-              {renderWidgetCard(
                 'tag',
                 <Tag
                   placeSelf="center"
@@ -1811,6 +1803,20 @@ export function ShowcasePage() {
                 >
                   {tag.text.trim() !== '' ? tag.text : undefined}
                 </Tag>
+              )}
+
+              {renderWidgetCard(
+                'switch',
+                <Switch
+                  checked={switchState.checked}
+                  disabled={switchState.disabled}
+                  placeSelf="center"
+                  size={switchState.size}
+                  tone={switchState.tone}
+                  onChange={(event) => updateSwitch('checked', event.target.checked)}
+                >
+                  {switchState.text.trim() !== '' ? switchState.text : undefined}
+                </Switch>
               )}
 
               {renderWidgetCard(
@@ -1909,39 +1915,44 @@ export function ShowcasePage() {
               )}
 
               {renderWidgetCard(
-                'switch',
-                <Switch
-                  checked={switchState.checked}
-                  disabled={switchState.disabled}
-                  placeSelf="center"
-                  size={switchState.size}
-                  tone={switchState.tone}
-                  onChange={(event) => updateSwitch('checked', event.target.checked)}
-                >
-                  {switchState.text.trim() !== '' ? switchState.text : undefined}
-                </Switch>
+                'modal',
+                <>
+                  <Button
+                    alignSelf="center"
+                    tone="primary"
+                    onClick={() => setIsModalOpen(true)}
+                  >
+                    Open modal
+                  </Button>
+                  <Modal
+                    background={modal.background}
+                    inlineSize={MODAL_INLINE_SIZE[modal.size]}
+                    open={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    {...modalBorderProps}
+                    {...modalAccessibleName}
+                    {...modalSubtitleProps}
+                  >
+                    {DEMO_MODAL_BODY_TEXT}
+                  </Modal>
+                </>
               )}
 
               {renderWidgetCard(
                 'toast',
-                <>
-                  <Toast alignSelf="center" size={toast.size} tone={toast.tone}>
-                    {toast.message}
-                  </Toast>
-                  <Button
-                    alignSelf="center"
-                    tone="primary"
-                    onClick={() =>
-                      showToast({
-                        message: toast.message,
-                        size: toast.size,
-                        tone: toast.tone,
-                      })
-                    }
-                  >
-                    Show toast
-                  </Button>
-                </>
+                <Button
+                  alignSelf="center"
+                  tone="primary"
+                  onClick={() =>
+                    showToast({
+                      message: toast.message,
+                      size: toast.size,
+                      tone: toast.tone,
+                    })
+                  }
+                >
+                  Show toast
+                </Button>
               )}
             </StyledShowcaseWidgets>
           </ScrollPort>

@@ -6,6 +6,7 @@
  * 1. Экспортировать компонент SearchIcon
  *
  * Потребители:
+ *  - `src/ui/search-field/index.tsx` — показывает иконку поля поиска
  *  - `src/pages/showcase/showcase-icon-options.tsx` — включает в опции витрины
  */
 
