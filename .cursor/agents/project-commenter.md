@@ -1,13 +1,13 @@
 ---
-name: project-commenter
-description: >-
   Приводит комментарии указанных файлов к канону comments.mdc: пишет
   недостающие, исправляет нарушающие, удаляет запрещённые, прогоняет
   финальный чеклист самопроверки. Код не меняет. Правит только при
   нарушении канона или ради единообразия, перефраз без основания
   запрещён. Используй по команде «прокомментируй» / «приведи
   комментарии к канону».
-model: claude-sonnet-5-thinking-high
+name: project-commenter
+model: grok-4.7[context=500k,reasoning_effort=xhigh,fast=false]
+description: >-
 ---
 
 # Project-commenter

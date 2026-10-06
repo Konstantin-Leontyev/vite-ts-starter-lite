@@ -1,10 +1,10 @@
 ---
-name: project-reviewer
-description: >-
   Глубокое архитектурное ревью: UI по общему чеклисту канона, бизнес-логика,
   бекенд. Только анализ, без правок. По команде «сделай ревью» или перед
   коммитом.
-model: claude-sonnet-5-thinking-high
+name: project-reviewer
+model: grok-4.7[context=500k,reasoning_effort=xhigh,fast=false]
+description: >-
 readonly: true
 ---
 
