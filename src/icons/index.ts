@@ -6,7 +6,7 @@
  * 1. Реэкспортировать компоненты иконок набора
  *
  * Потребители:
- *  - страницы, виджеты и контролы приложения, например Header и Sidebar —
+ *  - страницы, виджеты и контролы приложения, например Header, Sidebar и SidePanelApp —
  *    импортируют иконки через `@icons`
  *  - `src/pages/showcase/showcase-icon-options.tsx` — собирает опции витрины
  */
@@ -14,7 +14,6 @@
 export { AddCircleIcon } from './add-circle';
 export { AvatarIcon } from './avatar';
 export { CalendarIcon } from './calendar';
-export { CaptionIcon } from './caption';
 export { CheckIcon } from './check';
 export { ChevronDoubleLeftIcon } from './chevron-double-left';
 export { ChevronDoubleRightIcon } from './chevron-double-right';
@@ -29,9 +28,11 @@ export { CopyIcon } from './copy';
 export { DownloadIcon } from './download';
 export { DualIcon } from './dual';
 export { EarthIcon } from './earth';
+export { EpisodeIcon } from './episode';
 export { PlusIcon } from './plus';
 export { SearchIcon } from './search';
 export { SettingsIcon } from './settings';
 export { SidebarIcon } from './sidebar';
 export { SignOutIcon } from './sign-out';
+export { SubtitlesIcon } from './subtitles';
 export { UploadIcon } from './upload';
